@@ -1,0 +1,1181 @@
+"use client";
+
+import React, { useState, useRef } from "react";
+import { useParams, useRouter, usePathname } from "next/navigation";
+import { Input, Button } from "@heroui/react";
+import {
+  XMarkIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ChevronRightIcon,
+  CalendarIcon,
+  ClockIcon,
+  UserGroupIcon,
+  MagnifyingGlassIcon,
+  MinusIcon,
+  PlusIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  XCircleIcon,
+  DocumentTextIcon,
+  TruckIcon,
+  UserIcon,
+  UserCircleIcon,
+  MapIcon,
+  GlobeAltIcon,
+  PencilSquareIcon,
+} from "@heroicons/react/24/outline";
+import Sidebar from "../../../../components/Sidebar";
+import Header from "../../../../components/Header";
+import Footer from "../../../../components/Footer";
+import WarningModal from "../../../../components/WarningModal";
+import LoadingModal from "../../../../components/LoadingModal";
+import SuccessModal from "../../../../components/SuccessModal";
+import NoShowModal from "../../../../components/NoShowModal";
+import CheckInModal from "../../../../components/CheckInModal";
+
+// ─── Summary Card Icons (ตรงกับ Check In List — SVG จาก Figma) ─────────────────
+const IconWaiting = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M15.241 2H8.76101C5.00101 2 4.71101 5.38 6.74101 7.22L17.261 16.78C19.291 18.62 19.001 22 15.241 22H8.76101C5.00101 22 4.71101 18.62 6.74101 16.78L17.261 7.22C19.291 5.38 19.001 2 15.241 2Z" stroke="#FFC107" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconCompleted = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M3.62166 8.49C5.59166 -0.169998 18.4217 -0.159997 20.3817 8.5C21.5317 13.58 18.3717 17.88 15.6017 20.54C13.5917 22.48 10.4117 22.48 8.39166 20.54C5.63166 17.88 2.47166 13.57 3.62166 8.49Z" stroke="#1CB579" strokeWidth={1.5} />
+    <path d="M9.25 11.5L10.75 13L14.75 9" stroke="#1CB579" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconNoShow = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M18.4098 18.0898L15.5898 20.9098" stroke="#D91616" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M18.4098 20.9098L15.5898 18.0898" stroke="#D91616" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.1586 10.87C12.0586 10.86 11.9386 10.86 11.8286 10.87C9.44859 10.79 7.55859 8.84 7.55859 6.44C7.55859 3.99 9.53859 2 11.9986 2C14.4486 2 16.4386 3.99 16.4386 6.44C16.4286 8.84 14.5386 10.79 12.1586 10.87Z" stroke="#D91616" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.0008 21.8097C10.1808 21.8097 8.37078 21.3497 6.99078 20.4297C4.57078 18.8097 4.57078 16.1697 6.99078 14.5597C9.74078 12.7197 14.2508 12.7197 17.0008 14.5597" stroke="#D91616" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const IconAmountPax = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+    <path d="M9.15859 10.87C9.05859 10.86 8.93859 10.86 8.82859 10.87C6.44859 10.79 4.55859 8.84 4.55859 6.44C4.55859 3.99 6.53859 2 8.99859 2C11.4486 2 13.4386 3.99 13.4386 6.44C13.4286 8.84 11.5386 10.79 9.15859 10.87Z" stroke="#007800" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M16.4112 4C18.3512 4 19.9112 5.57 19.9112 7.5C19.9112 9.39 18.4113 10.93 16.5413 11C16.4613 10.99 16.3713 10.99 16.2812 11" stroke="#007800" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4.15875 14.56C1.73875 16.18 1.73875 18.82 4.15875 20.43C6.90875 22.27 11.4188 22.27 14.1688 20.43C16.5888 18.81 16.5888 16.17 14.1688 14.56C11.4288 12.73 6.91875 12.73 4.15875 14.56Z" stroke="#007800" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M18.3398 20C19.0598 19.85 19.7398 19.56 20.2998 19.13C21.8598 17.96 21.8598 16.03 20.2998 14.86C19.7498 14.44 19.0798 14.16 18.3698 14" stroke="#007800" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/**
+ * Status ของ Booking:
+ * - waiting: ยังไม่ทำอะไร รอคน Check In
+ * - waitingReason: Check In แล้วแต่รอใส่ข้อมูล
+ * - noShow: Check In แล้วแต่ไม่มา
+ * - checkedIn (แสดงใน UI เป็น "Completed"): สำเร็จ
+ */
+interface Booking {
+  id: string;
+  bookingNo: string;
+  program: string;
+  option: string;
+  customerName: string;
+  phone: string;
+  pax: number;
+  checkIn: number;
+  noShow: number;
+  language: string;
+  status: "waiting" | "waitingReason" | "checkedIn" | "noShow" | "rescheduled";
+  checkedInTime?: string;
+  remark?: string;
+}
+
+export default function CheckInViewPage() {
+  const params = useParams();
+  const router = useRouter();
+  const tripCode = params.tripCode as string;
+  const pathname = usePathname();
+  const isTransportFlow = pathname.includes("/check-in/transport/");
+  const flowLabel = isTransportFlow ? "Transport" : "Excursion";
+
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showNoShowModal, setShowNoShowModal] = useState(false);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [fabHover, setFabHover] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [expandedSections, setExpandedSections] = useState({
+    itinerary: false,
+    booking: true,
+  });
+  const [selectedLanguage, setSelectedLanguage] = useState("EN");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedBookingIds, setSelectedBookingIds] = useState<Set<string>>(new Set());
+  const pendingCheckInBookingIdRef = useRef<string | null>(null);
+  const pendingNoShowRef = useRef<{ bookingId: string; noShowPax: number; originalPax: number } | null>(null);
+  const pendingNoShowFromCheckInRef = useRef<number | null>(null);
+
+  const toggleBookingSelection = (id: string) => {
+    setSelectedBookingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedBookingIds(new Set());
+
+  // Mock data (tripCode จาก URL เพื่อให้กด View จาก List แสดงทริปที่เลือก)
+  const tripData = {
+    tripCode: tripCode ?? "EC25Z1PW",
+    travelDate: "17/12/2025",
+    tripRound: "07:30",
+    tripType: "Join In",
+    program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+    remark: "",
+    status: "Pending",
+    totalPax: 30,
+    checkedInPax: 9,
+  };
+
+  const bookings: Booking[] = [
+    {
+      id: "1",
+      bookingNo: "TSB-01251012",
+      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      option: "Day Trip with Shared Transfer including National Park Fee",
+      customerName: "Yerik Trevor Tavarez",
+      phone: "065-9016894",
+      pax: 5,
+      checkIn: 0,
+      noShow: 0,
+      language: "EN",
+      status: "waiting",
+      remark: "-",
+    },
+    {
+      id: "1b",
+      bookingNo: "TSB-03250124",
+      program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      option: "Day Trip with Shared Transfer including National Park Fee",
+      customerName: "Leanne Tague",
+      phone: "+447708157027",
+      pax: 5,
+      checkIn: 0,
+      noShow: 0,
+      language: "EN",
+      status: "waiting",
+      remark: "-",
+    },
+    {
+      id: "2",
+      bookingNo: "TSB-01251013",
+      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      option: "Day Trip with Shared Transfer including National Park Fee",
+      customerName: "John Doe",
+      phone: "065-9016895",
+      pax: 5,
+      checkIn: 3,
+      noShow: 2,
+      language: "EN",
+      status: "waitingReason",
+      remark: "-",
+    },
+    {
+      id: "3",
+      bookingNo: "TSB-01251014",
+      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      option: "Day Trip with Shared Transfer including National Park Fee",
+      customerName: "Jane Smith",
+      phone: "065-9016896",
+      pax: 5,
+      checkIn: 5,
+      noShow: 0,
+      language: "EN",
+      status: "checkedIn",
+      checkedInTime: "06:30",
+      remark: "-",
+    },
+    {
+      id: "4",
+      bookingNo: "TSB-01251512",
+      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      option: "Day Trip with Shared Transfer including National Park Fee",
+      customerName: "Joyce De Vos",
+      phone: "+32472602889",
+      pax: 2,
+      checkIn: 0,
+      noShow: 2,
+      language: "EN",
+      status: "noShow",
+      remark: "-",
+    },
+  ];
+
+  const [bookingStates, setBookingStates] = useState(
+    bookings.map((b) => ({
+      ...b,
+      checkIn: b.checkIn,
+      noShow: b.noShow,
+    }))
+  );
+
+  const filteredBookings = bookingStates.filter((booking) => {
+    // กรอง rescheduled bookings ออก (ไม่แสดงในรายการ Check In)
+    if (booking.status === "rescheduled") return false;
+    
+    const matchesLanguage = booking.language === selectedLanguage;
+    const matchesSearch =
+      searchQuery === "" ||
+      booking.bookingNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      booking.customerName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesLanguage && matchesSearch;
+  });
+
+  // เรียง: Waiting → Waiting Reason → Completed → No show
+  const statusOrder: Record<string, number> = {
+    waiting: 0,
+    waitingReason: 1,
+    checkedIn: 2,
+    noShow: 3,
+  };
+  const sortedBookings = [...filteredBookings].sort(
+    (a, b) => (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4)
+  );
+
+  // Summary = Pax summary (ผลรวมจำนวนคนจาก bookingStates, ไม่นับ rescheduled)
+  const activeBookings = bookingStates.filter((b) => b.status !== "rescheduled");
+  const summaryWaiting = activeBookings.filter((b) => b.status === "waiting").reduce((sum, b) => sum + b.pax, 0);
+  const summaryCheckedIn = activeBookings.reduce((sum, b) => sum + b.checkIn, 0);
+  const summaryNoShow = activeBookings.reduce((sum, b) => sum + b.noShow, 0);
+  const summaryAmountPax = activeBookings.reduce((sum, b) => sum + b.pax, 0);
+  const summaryCheckedInPax = summaryCheckedIn;
+
+  const handleCheckInChange = (bookingId: string, value: number) => {
+    setBookingStates((prev) =>
+      prev.map((booking) => {
+        if (booking.id === bookingId && booking.status === "waiting") {
+          // แก้ไขได้เฉพาะเมื่อ status เป็น "waiting" เท่านั้น
+          const newCheckIn = Math.max(1, Math.min(value, booking.pax));
+          const newNoShow = booking.pax - newCheckIn;
+          return {
+            ...booking,
+            checkIn: newCheckIn,
+            noShow: newNoShow,
+          };
+        }
+        return booking;
+      })
+    );
+  };
+
+  const handleCheckIn = (booking: Booking) => {
+    const currentBooking = bookingStates.find((b) => b.id === booking.id);
+    if (!currentBooking) return;
+
+    // ตรวจสอบว่าเป็น status "waiting" เท่านั้น
+    if (currentBooking.status !== "waiting") return;
+
+    if (currentBooking.noShow > 0) {
+      setSelectedBooking(currentBooking);
+      setShowNoShowModal(true);
+    } else {
+      // อัปเดต status เป็น checkedIn
+      setBookingStates((prev) =>
+        prev.map((b) =>
+          b.id === booking.id
+            ? {
+                ...b,
+                status: "checkedIn" as const,
+                checkedInTime: new Date()
+                  .toLocaleTimeString("en-GB", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                  .slice(0, 5),
+              }
+            : b
+        )
+      );
+      setShowWarningModal(true);
+    }
+  };
+
+  const processCheckIn = () => {
+    const noShowPending = pendingNoShowRef.current;
+    if (noShowPending) {
+      const { bookingId, noShowPax, originalPax } = noShowPending;
+      const newStatus = noShowPax === originalPax ? ("noShow" as const) : ("checkedIn" as const);
+      const checkIn = originalPax - noShowPax;
+      setBookingStates((prev) =>
+        prev.map((b) =>
+          b.id === bookingId
+            ? {
+                ...b,
+                noShow: noShowPax,
+                checkIn,
+                status: newStatus,
+                ...(newStatus === "checkedIn"
+                  ? {
+                      checkedInTime: new Date()
+                        .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                        .slice(0, 5),
+                    }
+                  : {}),
+              }
+            : b
+        )
+      );
+      pendingNoShowRef.current = null;
+      setSelectedBooking(null);
+    } else {
+      const bookingIdToConfirm = pendingCheckInBookingIdRef.current ?? selectedBooking?.id;
+      if (bookingIdToConfirm) {
+        setBookingStates((prev) =>
+          prev.map((b) =>
+            b.id === bookingIdToConfirm
+              ? {
+                  ...b,
+                  status: "checkedIn" as const,
+                  checkedInTime: new Date()
+                    .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                    .slice(0, 5),
+                }
+              : b
+          )
+        );
+        pendingCheckInBookingIdRef.current = null;
+        setSelectedBooking(null);
+      }
+    }
+    setShowWarningModal(false);
+    setShowNoShowModal(false);
+    setShowLoading(true);
+
+    setTimeout(() => {
+      setShowLoading(false);
+      setShowSuccess(true);
+    }, 1500);
+  };
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes slideInRight {
+            from {
+              transform: translateX(100%);
+            }
+            to {
+              transform: translateX(0);
+            }
+          }
+          .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out;
+          }
+        `
+      }} />
+      <div className="flex h-screen bg-gray-50">
+        {/* Sidebar */}
+        <Sidebar />
+
+      {/* Main Content */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
+        <Header />
+
+        {/* Main Content Area - ดีไซน์ Excursion > Check In List > View */}
+        <main className="flex-1 overflow-y-auto bg-[#F8F8F8] flex flex-col">
+          <div className="container mx-auto px-6 py-8 flex-1 flex flex-col items-center gap-6 w-full">
+            {/* Head 1: Breadcrumb + Actions — ตามดีไซน์ #B9B9B9 / #265ED6 */}
+            <div data-property-1="Head 1" className="w-full max-w-[1616px] overflow-hidden flex justify-between items-center">
+              <div className="flex justify-start items-center gap-2">
+                <span className="text-[#B9B9B9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
+                  {flowLabel}
+                </span>
+                <ChevronRightIcon className="size-6 text-[#292D32] shrink-0" />
+                <span className="text-[#B9B9B9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Check In List</span>
+                <ChevronRightIcon className="size-6 text-[#292D32] shrink-0" />
+                <span className="text-[#265ED6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-[0.03em]">View</span>
+              </div>
+              <div className="flex justify-start items-start gap-6">
+                <div data-group="2" data-name="Normal 2" data-type="Default" className="px-4 py-2 bg-white rounded-lg border border-[#D9D9D9] inline-flex flex-col justify-start items-start gap-2.5">
+                  <div className="flex justify-start items-center gap-2">
+                    <DocumentTextIcon className="size-6 text-[#2A2A2A] shrink-0" />
+                    <span className="w-[53px] text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Export</span>
+                    <ChevronDownIcon className="size-6 text-[#2A2A2A] shrink-0" />
+                  </div>
+                </div>
+                <div className="w-10 h-px bg-[#D9D9D9] shrink-0 self-center" aria-hidden />
+                <button
+                  onClick={() => router.push("/check-in/excursion/list")}
+                  className="px-5 py-2 bg-white rounded-[100px] border border-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+                >
+                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Stats: Waiting, Completed, No show, Amount Pax — ตามดีไซน์ การ์ด flex-1, border #D9D9D9, ไอคอนสี */}
+            <div className="w-full max-w-[1136px] flex justify-start items-center gap-6">
+              <div className="flex-1 min-w-0 px-6 py-3 bg-white rounded-xl border border-[#D9D9D9] flex flex-col justify-start items-start gap-3">
+                <div className="w-full flex justify-start items-start gap-4">
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
+                    <div className="text-[#1A1A1A] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{summaryWaiting}</div>
+                    <div className="text-[#1A1A1A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Waiting</div>
+                  </div>
+                  <div className="p-2.5 bg-[#FFF2CA] rounded-xl flex justify-center items-center shrink-0">
+                    <IconWaiting />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 px-6 py-3 bg-white rounded-xl border border-[#D9D9D9] flex flex-col justify-start items-start gap-3">
+                <div className="w-full flex justify-start items-start gap-4">
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
+                    <div className="text-[#1A1A1A] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{summaryCheckedIn}</div>
+                    <div className="text-[#1A1A1A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Completed</div>
+                  </div>
+                  <div className="p-2.5 bg-[#E6F3E6] rounded-xl flex justify-center items-center shrink-0">
+                    <IconCompleted />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 px-6 py-3 bg-white rounded-xl border border-[#D9D9D9] flex flex-col justify-start items-start gap-3">
+                <div className="w-full flex justify-start items-start gap-4">
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
+                    <div className="text-[#1A1A1A] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{summaryNoShow}</div>
+                    <div className="text-[#1A1A1A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">No show</div>
+                  </div>
+                  <div className="p-2.5 bg-[#FFC3C3] rounded-xl flex justify-center items-center shrink-0">
+                    <IconNoShow />
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 px-6 py-3 bg-white rounded-xl border border-[#D9D9D9] flex flex-col justify-start items-start gap-3">
+                <div className="w-full flex justify-start items-start gap-4">
+                  <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
+                    <div className="text-[#1A1A1A] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{summaryAmountPax}</div>
+                    <div className="text-[#1A1A1A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Amount Pax</div>
+                  </div>
+                  <div className="p-2.5 bg-[#E6F3E6] rounded-xl flex justify-center items-center shrink-0">
+                    <IconAmountPax />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip info card — ตามดีไซน์ padding 48, rounded 16, pills #FD5C04/#1CB579/#265ED6, Pending #FFEFE6, 19/30 #F8F8F8 */}
+            <div data-property-1="Default" className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl flex flex-col justify-start items-center gap-6 overflow-hidden">
+              <div className="self-stretch flex justify-start items-center flex-wrap gap-6">
+                <div className="flex-1 flex justify-start items-center gap-6 min-w-0">
+                  <div className="flex justify-start items-center gap-2 flex-wrap">
+                    <div data-property-1="Calendar" className="h-8 px-2 py-0.5 bg-white rounded-full border border-[#FD5C04] inline-flex items-center gap-1">
+                      <CalendarIcon className="size-[18px] text-[#FD5C04] shrink-0" />
+                      <span className="text-[#FD5C04] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{tripData.travelDate}</span>
+                    </div>
+                    <div data-property-1="Time" className="h-8 px-2 py-0.5 bg-white rounded-full border border-[#1CB579] inline-flex items-center gap-1">
+                      <ClockIcon className="size-6 text-[#1CB579] shrink-0" />
+                      <span className="text-[#1CB579] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-center">{tripData.tripRound.replace(":", " : ")}</span>
+                    </div>
+                    <div data-property-1="Variant4" className="h-8 px-2 py-0.5 bg-[#F8FCFF] rounded-full border border-[#265ED6] inline-flex items-center gap-1">
+                      <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
+                      <span className="w-12 text-center text-[#265ED6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{tripData.tripType}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-center items-center gap-3 shrink-0">
+                  <div data-property-1="Pending" className="px-2 py-0.5 bg-[#FFEFE6] rounded-2xl flex justify-center items-center gap-1">
+                    <div className="size-2.5 bg-[#FD5C04] rounded-full" />
+                    <span className="text-[#FD5C04] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-center">{tripData.status}</span>
+                  </div>
+                  <div data-property-1="Default" className="px-2 py-1 bg-[#F8F8F8] rounded-[30px] inline-flex items-center gap-1">
+                    <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
+                    <span className="text-[#142B41] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-right">{summaryCheckedInPax}/{summaryAmountPax}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                <div className="flex justify-start items-center gap-2">
+                  <DocumentTextIcon className="size-6 text-[#265ED6] shrink-0" />
+                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Trip Code No. {tripData.tripCode}</span>
+                </div>
+                <div className="self-stretch flex justify-start items-start gap-6 flex-wrap">
+                  <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em] shrink-0">Program name</span>
+                  <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 shrink-0">: </span>
+                  <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">{tripData.program}</span>
+                </div>
+                <div className="self-stretch flex justify-start items-start gap-6 flex-wrap">
+                  <span className="w-[108px] text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em] shrink-0">Remark</span>
+                  <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 shrink-0">: </span>
+                  <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">{tripData.remark || "-"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Itinerary Detail */}
+            <div data-property-1="Default" className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl flex flex-col justify-start items-center gap-6 overflow-hidden">
+              <button
+                onClick={() => toggleSection("itinerary")}
+                className="w-full inline-flex justify-start items-center gap-2"
+              >
+                <MapIcon className="size-8 text-[#265ED6] shrink-0" />
+                <span className="flex-1 text-left text-[#265ED6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Itinerary Detail</span>
+                <div className="flex justify-center items-center">
+                  {expandedSections.itinerary ? (
+                    <ChevronUpIcon className="size-6 text-zinc-800" />
+                  ) : (
+                    <ChevronDownIcon className="size-6 text-zinc-800" />
+                  )}
+                </div>
+              </button>
+              {expandedSections.itinerary && (
+                <div className="w-full pt-2 border-t border-zinc-200">
+                  <p className="text-sm text-zinc-600 font-['IBM_Plex_Sans_Thai']">Itinerary details will be displayed here...</p>
+                </div>
+              )}
+            </div>
+
+            {/* Booking Detail — ตามดีไซน์ width 1136, padding 48/24, gap 12, #265ED6, #006AFF, Search 250 #D9D9D9 */}
+            <div data-property-1="Default" className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl inline-flex flex-col justify-center items-center gap-3">
+              <button
+                type="button"
+                onClick={() => toggleSection("booking")}
+                className="self-stretch inline-flex justify-start items-center gap-2 text-left"
+                aria-expanded={expandedSections.booking}
+              >
+                <DocumentTextIcon className="size-6 text-[#265ED6] shrink-0" aria-hidden />
+                <span className="flex-1 text-[#265ED6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Booking Detail</span>
+                <div className="flex justify-center items-center gap-12">
+                  {expandedSections.booking ? (
+                    <ChevronUpIcon className="size-6 text-[#2A2A2A]" />
+                  ) : (
+                    <ChevronDownIcon className="size-6 text-[#2A2A2A]" />
+                  )}
+                </div>
+              </button>
+              {expandedSections.booking && (
+                <>
+                  <div className="self-stretch inline-flex justify-start items-center gap-[10px]">
+                    <div className="flex-1 flex justify-start items-center gap-[18px]">
+                      <span className="text-[#006AFF] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Language :</span>
+                      <div className="flex justify-start items-center gap-2">
+                        <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">EN {filteredBookings.length}</span>
+                      </div>
+                    </div>
+                    <div data-property-1="Search no filter" className="w-[250px] h-10 relative bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#D9D9D9] flex items-center pl-3">
+                      <MagnifyingGlassIcon className="size-6 text-[#676363] shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search Booking"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1 min-w-0 text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em] bg-transparent border-0 outline-none placeholder:text-[#B9B9B9]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Selected bookings bar — แสดงเมื่อมีรายการที่เลือก */}
+                  {selectedBookingIds.size > 0 && (
+                    <div className="self-stretch pt-3 pb-3 overflow-hidden rounded-t-lg flex justify-end items-center gap-3">
+                      <div className="flex-1 h-6 relative">
+                        <span className="text-[#006AFF] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
+                          {selectedBookingIds.size} Booking Selected
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearSelection}
+                        className="px-5 py-2 rounded-[100px] border border-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+                      >
+                        <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Clear</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const firstId = Array.from(selectedBookingIds)[0];
+                          const b = filteredBookings.find((x) => x.id === firstId);
+                          if (b) {
+                            // ปิด modal อื่นๆ ทั้งหมดก่อนเปิด CheckInModal
+                            setShowWarningModal(false);
+                            setShowNoShowModal(false);
+                            setShowCheckInModal(false);
+                            setSelectedBooking(b);
+                            // เปิด CheckInModal หลังจากปิด modal อื่นๆ แล้ว
+                            setTimeout(() => setShowCheckInModal(true), 0);
+                          }
+                        }}
+                        className="px-5 py-2 bg-[#1CB579] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                      >
+                        <CheckIcon className="size-6 text-white shrink-0" strokeWidth={2.5} />
+                        <span className="text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Check - In</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Booking List - ตรงดีไซน์ */}
+                  <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                    {sortedBookings.map((booking) => {
+                      const isWhite = booking.status === "waiting" || booking.status === "waitingReason";
+                      const cardClass = isWhite
+                        ? "w-full max-w-[1040px] px-4 py-2 bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#EAECF0] flex flex-col justify-start items-start gap-3 overflow-hidden"
+                        : "w-full max-w-[1040px] px-4 py-2 bg-[#F8F8F8] rounded-lg flex flex-col justify-start items-start gap-3 overflow-hidden";
+                      const statusLabel =
+                        booking.status === "waiting"
+                          ? "Waiting"
+                          : booking.status === "waitingReason"
+                            ? "Waiting reason"
+                            : booking.status === "checkedIn"
+                              ? "Completed"
+                              : "No show";
+                      const statusDataProp =
+                        booking.status === "waiting"
+                          ? "Waiting"
+                          : booking.status === "waitingReason"
+                            ? "Waiting reason"
+                            : booking.status === "checkedIn"
+                              ? "Completed"
+                              : "No show";
+                      const statusPillClass =
+                        booking.status === "waiting" || booking.status === "waitingReason"
+                          ? "min-w-[126px] h-7 p-2 bg-[#FFF8E5] rounded-[100px] flex justify-center items-center gap-2 shrink-0"
+                          : booking.status === "checkedIn"
+                            ? "min-w-[126px] h-7 p-2 bg-[#E6F3E6] rounded-[100px] flex justify-center items-center gap-2 shrink-0"
+                            : "min-w-[126px] h-7 p-2 bg-[#FFE8E5] rounded-[100px] flex justify-center items-center gap-2 shrink-0";
+                      const statusDotClass =
+                        booking.status === "waiting" || booking.status === "waitingReason"
+                          ? "size-2 bg-[#FFC107] rounded-full"
+                          : booking.status === "checkedIn"
+                            ? "size-2 bg-[#1CB579] rounded-full"
+                            : "size-2 bg-[#D91616] rounded-full";
+                      const statusTextClass =
+                        booking.status === "waiting" || booking.status === "waitingReason"
+                          ? "text-center text-[#FFC107] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] whitespace-nowrap"
+                          : booking.status === "checkedIn"
+                            ? "text-center text-[#1CB579] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] whitespace-nowrap"
+                            : "text-center text-[#D91616] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] whitespace-nowrap";
+                      const cardDataProp =
+                        booking.status === "waiting"
+                          ? "Default"
+                          : booking.status === "waitingReason"
+                            ? "Variant3"
+                            : booking.status === "checkedIn"
+                              ? "Variant2"
+                              : "Variant4";
+                      return (
+                        <div key={booking.id} data-property-1={cardDataProp} className={cardClass}>
+                          <div className="self-stretch inline-flex justify-start items-center gap-4">
+                            {booking.status === "waiting" && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleBookingSelection(booking.id); }}
+                                data-dark="True"
+                                data-style="Outline"
+                                data-checkbox-type="False"
+                                className={`size-6 relative rounded border shrink-0 flex items-center justify-center transition-colors ${
+                                  selectedBookingIds.has(booking.id)
+                                    ? "bg-[#265ED6] border-[#265ED6]"
+                                    : "bg-white border-[#265ED6]"
+                                }`}
+                              >
+                                {selectedBookingIds.has(booking.id) && (
+                                  <CheckIcon className="size-4 text-white" strokeWidth={3} />
+                                )}
+                              </button>
+                            )}
+                            <div className="flex-1 inline-flex flex-col justify-start items-start gap-1">
+                              <div className="inline-flex justify-start items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedBooking(booking)}
+                                  className="justify-start text-[#265ED6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6 tracking-[0.01em] text-left"
+                                >
+                                  {booking.bookingNo}
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex justify-start items-center gap-6">
+                              <div className="flex justify-start items-center gap-2">
+                                <GlobeAltIcon className="size-4 text-[#2A2A2A] shrink-0" />
+                                <div className="justify-start text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.language}</div>
+                              </div>
+                              <div data-property-1={statusDataProp} className={statusPillClass}>
+                                <div className={statusDotClass} />
+                                <div className={statusTextClass}>{statusLabel}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="self-stretch flex flex-col justify-start items-start gap-2">
+                            <div className="self-stretch inline-flex justify-start items-start gap-4">
+                              <div className="flex-1 inline-flex flex-col justify-start items-start gap-1">
+                                <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Program</div>
+                                <div className="self-stretch text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.program}</div>
+                              </div>
+                              <div className="w-[200px] inline-flex flex-col justify-start items-start gap-1">
+                                <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Option</div>
+                                <div className="self-stretch text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.option}</div>
+                              </div>
+                              <div className="flex justify-start items-end gap-4">
+                                <div className="w-[180px] inline-flex flex-col justify-start items-start gap-1">
+                                  <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Customer Name</div>
+                                  <div className="self-stretch text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.customerName}</div>
+                                </div>
+                                <div className="w-[120px] inline-flex flex-col justify-start items-start gap-1">
+                                  <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Phone number</div>
+                                  <div className="self-stretch text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.phone}</div>
+                                </div>
+                                <div className="w-[100px] flex justify-start items-start gap-1">
+                                  <div className="flex justify-start items-center gap-1">
+                                    <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
+                                    <div className="justify-center text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.pax}</div>
+                                    <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Pax</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="self-stretch inline-flex justify-start items-start gap-1">
+                              <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">Remark :</div>
+                              <div className="text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{booking.remark || "-"}</div>
+                            </div>
+                          </div>
+                          <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.5px] outline-[#D1D4DA]" />
+                          <div className="self-stretch p-3 rounded-lg inline-flex justify-start items-center gap-6">
+                            <div className="flex-1 flex justify-start items-center gap-6">
+                              <div className="text-[#2A2A2A] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Total Check in</div>
+                              <div className="flex justify-start items-center gap-3">
+                                <div data-property-1="Completed" className="h-7 p-2 rounded-lg flex justify-start items-center gap-2">
+                                  <div className="text-center text-[#1CB579] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">{booking.checkIn}</div>
+                                  <div className="text-center text-[#1CB579] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Check In</div>
+                                </div>
+                                <div data-property-1="Variant3" className="h-7 p-2 rounded-lg flex justify-start items-center gap-2">
+                                  <div className="text-center text-[#D91616] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">{booking.noShow}</div>
+                                  <div className="text-center text-[#D91616] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">No show</div>
+                                </div>
+                              </div>
+                            </div>
+                            {booking.status === "waiting" && (
+                              <>
+                                <button
+                                  type="button"
+                                  data-button-color="Red Primary"
+                                  data-button-size="Size 32"
+                                  data-button-state="Outline"
+                                  onClick={() => {
+                                    // ปิด modal อื่นๆ ทั้งหมดก่อนเปิด NoShowModal
+                                    setShowWarningModal(false);
+                                    setShowCheckInModal(false);
+                                    setShowNoShowModal(false);
+                                    setSelectedBooking(booking);
+                                    // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
+                                    setTimeout(() => setShowNoShowModal(true), 0);
+                                  }}
+                                  className="px-4 py-1 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#FF3B3B] flex justify-center items-center gap-2 hover:bg-red-50/50 transition-colors"
+                                >
+                                  <div className="size-6 relative overflow-hidden flex items-center justify-center">
+                                    <XCircleIcon className="size-5 text-[#D91616]" />
+                                  </div>
+                                  <div className="text-[#D91616] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">No Show</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  data-button-color="Green Primary"
+                                  data-button-size="Size 32"
+                                  data-button-state="Enabled"
+                                  onClick={() => {
+                                    // ปิด modal อื่นๆ ทั้งหมดก่อนเปิด CheckInModal
+                                    setShowWarningModal(false);
+                                    setShowNoShowModal(false);
+                                    setShowCheckInModal(false);
+                                    setSelectedBooking(booking);
+                                    // เปิด CheckInModal หลังจากปิด modal อื่นๆ แล้ว
+                                    setTimeout(() => setShowCheckInModal(true), 0);
+                                  }}
+                                  className="px-4 py-1 bg-[#1CB579] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                                >
+                                  <CheckCircleIcon className="size-6 text-white shrink-0" />
+                                  <div className="text-center text-white text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Check - In</div>
+                                </button>
+                              </>
+                            )}
+                            {booking.status === "waitingReason" && (
+                              <button
+                                type="button"
+                                data-button-color="Blue Primary"
+                                data-button-size="Size 32"
+                                data-button-state="Enabled"
+                                onClick={() => {
+                                  // ปิด modal อื่นๆ ทั้งหมดก่อนเปิด NoShowModal
+                                  setShowWarningModal(false);
+                                  setShowCheckInModal(false);
+                                  setShowNoShowModal(false);
+                                  setSelectedBooking(booking);
+                                  // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
+                                  setTimeout(() => setShowNoShowModal(true), 0);
+                                }}
+                                className="px-4 py-1 bg-[#265ED6] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                              >
+                                <PencilSquareIcon className="size-6 text-white shrink-0" />
+                                <div className="text-white text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Add Condition</div>
+                              </button>
+                            )}
+                            {booking.status === "checkedIn" && (
+                              <div className="flex justify-start items-center gap-2">
+                                <ClockIcon className="size-4 text-[#848484] shrink-0" />
+                                <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
+                                  {tripData.travelDate}:{booking.checkedInTime || "00:00"}
+                                </span>
+                              </div>
+                            )}
+                            {booking.status === "noShow" && (
+                              <div className="flex justify-start items-center gap-2">
+                                <ClockIcon className="size-4 text-[#848484] shrink-0" />
+                                <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
+                                  Time Stamp  {booking.checkedInTime || "06 :30"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <Footer />
+        </main>
+
+        {/* Floating Action Button - ซ่อนเมื่อป๊อปอัพเปิด กลับมาเมื่อกดกากบาท */}
+        {!showDetailModal && (
+        <div className="fixed bottom-8 right-8 flex items-center gap-3 z-40">
+          {/* Tooltip: โชว์เมื่อโฮเวอร์ */}
+          {fabHover && (
+            <div
+              className="absolute right-full mr-3 px-4 py-2 rounded-full bg-[#E4ECF6] text-[#4A5568] text-sm font-normal whitespace-nowrap shadow-md"
+              style={{ fontFamily: "var(--font-ibm-plex-sans-thai), sans-serif" }}
+            >
+              Personnel, guide Information
+            </div>
+          )}
+          <button
+            onClick={() => setShowDetailModal(true)}
+            onMouseEnter={() => setFabHover(true)}
+            onMouseLeave={() => setFabHover(false)}
+            className="flex w-16 h-16 items-center justify-center gap-[10px] rounded-full transition-all z-40 bg-[#1A73E8] text-white shadow-lg hover:shadow-[0_0_20px_rgba(26,115,232,0.5)] hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#1A73E8] focus:ring-offset-2"
+          >
+            {/* ไอคอน Personnel / Guide ตาม Figma */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={32}
+              height={32}
+              viewBox="0 0 32 32"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M29.3346 10.666C29.3346 5.33268 26.668 2.66602 21.3346 2.66602H10.668C5.33464 2.66602 2.66797 5.33268 2.66797 10.666V27.9993C2.66797 28.7327 3.26797 29.3327 4.0013 29.3327H21.3346C26.668 29.3327 29.3346 26.666 29.3346 21.3327V15.9993"
+                stroke="white"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M20 12.666H22.6667"
+                stroke="white"
+                strokeWidth={1.5}
+                strokeMiterlimit={10}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9.33203 12.666H15.9987"
+                stroke="white"
+                strokeWidth={1.5}
+                strokeMiterlimit={10}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9.33203 19.334H18.6654"
+                stroke="white"
+                strokeWidth={1.5}
+                strokeMiterlimit={10}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        )}
+      </div>
+
+      {/* Modals */}
+      <WarningModal
+        isOpen={showWarningModal}
+        onConfirm={processCheckIn}
+        onCancel={() => {
+          // ปิด modal อื่นๆ ทั้งหมดเมื่อปิด WarningModal
+          setShowCheckInModal(false);
+          setShowNoShowModal(false);
+          pendingCheckInBookingIdRef.current = null;
+          pendingNoShowRef.current = null;
+          pendingNoShowFromCheckInRef.current = null;
+          setShowWarningModal(false);
+        }}
+      />
+
+      <LoadingModal isOpen={showLoading} />
+
+      <SuccessModal
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+      />
+
+      {selectedBooking && (() => {
+        const bookingForModal = bookingStates.find((b) => b.id === selectedBooking.id) ?? selectedBooking;
+        return (
+          <NoShowModal
+            isOpen={showNoShowModal}
+            onClose={() => {
+              // ปิด modal อื่นๆ ทั้งหมดเมื่อปิด NoShowModal
+              setShowWarningModal(false);
+              setShowCheckInModal(false);
+              setShowNoShowModal(false);
+              setSelectedBooking(null);
+              pendingNoShowFromCheckInRef.current = null;
+            }}
+            checkInPax={bookingForModal.checkIn}
+            bookingQuantity={bookingForModal.pax}
+            noShowPax={pendingNoShowFromCheckInRef.current ?? bookingForModal.noShow}
+            bookingNo={bookingForModal.bookingNo}
+            travelDate={tripData.travelDate}
+            tripRound={tripData.tripRound}
+            customerName={bookingForModal.customerName}
+            pricePerPax={1500}
+            onConfirm={(condition, data) => {
+              const payload = data && typeof data === "object" ? data as { noShowPax?: number; condition?: string; [k: string]: unknown } : {};
+              const noShowPax = Number(payload.noShowPax ?? 0);
+              const cond = payload.condition;
+
+              if (condition === "noShowCount" && "noShowPax" in payload) {
+                if (cond === "fullCharge") {
+                  pendingNoShowRef.current = {
+                    bookingId: selectedBooking.id,
+                    noShowPax,
+                    originalPax: bookingForModal.pax,
+                  };
+                  setShowNoShowModal(false);
+                  setSelectedBooking(null);
+                  setShowWarningModal(true);
+                }
+              }
+              if (condition === "reschedule") {
+                // เมื่อ Reschedule ให้ตั้ง status เป็น "rescheduled" และลบออกจากการ Check In
+                setBookingStates((prev) =>
+                  prev.map((b) =>
+                    b.id === selectedBooking.id
+                      ? { ...b, status: "rescheduled" as const }
+                      : b
+                  )
+                );
+                setShowNoShowModal(false);
+                setSelectedBooking(null);
+                // แสดง success message หรือ notification (ถ้ามี)
+                console.log("Booking rescheduled:", {
+                  bookingNo: bookingForModal.bookingNo,
+                  rescheduleData: payload,
+                });
+              }
+              if (condition === "refund") {
+                const n = Number(payload.noShowPax ?? 0);
+                const orig = bookingForModal.pax;
+                const newStatus = n === orig ? ("noShow" as const) : ("checkedIn" as const);
+                const checkIn = orig - n;
+                setBookingStates((prev) =>
+                  prev.map((b) =>
+                    b.id === selectedBooking.id
+                      ? { ...b, noShow: n, checkIn, status: newStatus }
+                      : b
+                  )
+                );
+                setShowNoShowModal(false);
+                setSelectedBooking(null);
+              }
+            }}
+            onLater={(noShowPaxFromModal: number) => {
+              const checkIn = bookingForModal.pax - noShowPaxFromModal;
+              setBookingStates((prev) =>
+                prev.map((b) =>
+                  b.id === selectedBooking.id
+                    ? { ...b, noShow: noShowPaxFromModal, checkIn, status: "waitingReason" as const }
+                    : b
+                )
+              );
+              setShowNoShowModal(false);
+              setSelectedBooking(null);
+            }}
+          />
+        );
+      })()}
+
+      {selectedBooking && (() => {
+        const bookingForModal = bookingStates.find((b) => b.id === selectedBooking.id) ?? selectedBooking;
+        return (
+          <CheckInModal
+            isOpen={showCheckInModal}
+            onClose={() => {
+              // ปิด modal อื่นๆ ด้วยเมื่อปิด CheckInModal
+              setShowWarningModal(false);
+              setShowNoShowModal(false);
+              setShowCheckInModal(false);
+              setSelectedBooking(null);
+              pendingNoShowFromCheckInRef.current = null;
+            }}
+            bookingNo={bookingForModal.bookingNo}
+            travelDate={tripData.travelDate}
+            tripRound={tripData.tripRound}
+            customerName={bookingForModal.customerName}
+            totalPax={bookingForModal.pax}
+            initialCheckIn={bookingForModal.checkIn}
+            onConfirm={(checkInCount) => {
+              const noShowCount = bookingForModal.pax - checkInCount;
+              setBookingStates((prev) =>
+                prev.map((b) =>
+                  b.id === selectedBooking.id
+                    ? { ...b, checkIn: checkInCount, noShow: noShowCount }
+                    : b
+                )
+              );
+              // ปิด CheckInModal ก่อน
+              setShowCheckInModal(false);
+              setSelectedBooking((prev) =>
+                prev ? { ...prev, checkIn: checkInCount, noShow: noShowCount } : null
+              );
+              // ใช้ setTimeout เพื่อให้ CheckInModal ปิดก่อน แล้วค่อยเปิด modal ถัดไป
+              setTimeout(() => {
+                if (noShowCount > 0) {
+                  // เก็บ noShowCount ที่คำนวณได้ไว้เพื่อส่งไปยัง NoShowModal
+                  pendingNoShowFromCheckInRef.current = noShowCount;
+                  setShowNoShowModal(true);
+                } else {
+                  pendingCheckInBookingIdRef.current = selectedBooking.id;
+                  setShowWarningModal(true);
+                }
+              }, 100);
+            }}
+          />
+        );
+      })()}
+
+      {/* Detail Modal - ทับไอคอน ปิดได้เฉพาะกดกากบาท */}
+      {showDetailModal && (
+        <>
+          {/* Modal Content - ชิดมุมขวาล่างให้ทับไอคอน FAB */}
+          <div
+            className="fixed right-8 bottom-8 w-[320px] max-h-[85vh] overflow-y-auto bg-slate-800 rounded-2xl px-5 py-4 flex flex-col items-start gap-4 shadow-2xl z-50 animate-slide-in-right"
+          >
+            {/* Close Button - กากบาทในวงกลมสีขาว */}
+            <div className="self-stretch flex justify-end items-center">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="w-7 h-7 flex items-center justify-center bg-white text-slate-800 hover:bg-slate-100 rounded-full transition-colors shadow"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Vehicle Detail */}
+            <div className="w-full flex flex-col items-start gap-3">
+              <div className="flex items-center gap-2">
+                <TruckIcon className="w-5 h-5 text-white shrink-0" />
+                <span className="text-white text-sm font-medium leading-5">
+                  Vehicle Detail
+                </span>
+              </div>
+              <div className="flex flex-col items-start gap-2 w-full">
+                <div className="flex items-start gap-2 w-full">
+                  <span className="text-white text-sm font-medium w-24 shrink-0">Vehicle</span>
+                  <span className="text-white text-sm font-normal">Speed Catamaran 2 engines</span>
+                </div>
+                <div className="flex items-start gap-2 w-full">
+                  <span className="text-white text-sm font-medium w-24 shrink-0">Registration</span>
+                  <span className="text-white text-sm font-normal">โลมาใจดี</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Separator - เส้นประ */}
+            <div className="self-stretch h-0 border-t border-dashed border-gray-500"></div>
+
+            {/* Personnel Detail */}
+            <div className="w-full flex flex-col items-start gap-3">
+              <div className="flex items-center gap-2">
+                <UserIcon className="w-5 h-5 text-white shrink-0" />
+                <span className="text-white text-sm font-medium leading-5">
+                  Personnel Detail
+                </span>
+              </div>
+              <div className="flex flex-col gap-3 w-full">
+                {[1, 2].map((_, i) => (
+                  <div key={`personnel-${i}`} className="flex flex-col gap-1.5 w-full">
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Position</span>
+                      <span className="text-white text-sm font-normal">Captain</span>
+                    </div>
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Name</span>
+                      <span className="text-white text-sm font-normal">Capt. Trunk</span>
+                    </div>
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Phone Number</span>
+                      <a href="tel:096-6502747" className="text-white text-sm font-normal hover:underline">096-6502747</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Separator - เส้นประ */}
+            <div className="self-stretch h-0 border-t border-dashed border-gray-500"></div>
+
+            {/* Guide Detail */}
+            <div className="w-full flex flex-col items-start gap-3">
+              <div className="flex items-center gap-2">
+                <UserCircleIcon className="w-5 h-5 text-white shrink-0" />
+                <span className="text-white text-sm font-medium leading-5">
+                  Guide Detail
+                </span>
+              </div>
+              <div className="flex flex-col gap-3 w-full">
+                {[1, 2].map((_, i) => (
+                  <div key={`guide-${i}`} className="flex flex-col gap-1.5 w-full">
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Position</span>
+                      <span className="text-white text-sm font-normal">Guide</span>
+                    </div>
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Name</span>
+                      <span className="text-white text-sm font-normal">G. Peter</span>
+                    </div>
+                    <div className="flex items-start gap-2 w-full">
+                      <span className="text-white text-sm font-medium w-24 shrink-0">Phone Number</span>
+                      <a href="tel:094-4313995" className="text-white text-sm font-normal hover:underline">094-4313995</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      </div>
+    </>
+  );
+}
