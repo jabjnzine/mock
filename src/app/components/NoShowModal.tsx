@@ -26,6 +26,7 @@ interface NoShowModalProps {
   pricePerPax: number;
   onConfirm: (condition: string, data?: unknown) => void;
   onLater?: (noShowPax: number) => void;
+  hideLaterButton?: boolean;
 }
 
 type ModalType = "select" | "condition" | "fullCharge" | "reschedule" | "rescheduleWarning" | "refund";
@@ -44,28 +45,27 @@ export default function NoShowModal({
   pricePerPax,
   onConfirm,
   onLater,
+  hideLaterButton = false,
 }: NoShowModalProps) {
-  const [modalType, setModalType] = useState<ModalType>("select");
+  const [modalType, setModalType] = useState<ModalType>("condition");
   const [noShowCount, setNoShowCount] = useState(noShowPax > 0 ? noShowPax : bookingQuantity);
   const [selectedCondition, setSelectedCondition] = useState<ConditionChoice | "">("");
 
   useEffect(() => {
     if (isOpen) {
-      // ถ้ามี noShowPax > 0 (มาจาก Check In ที่ลดจำนวน) ให้ใช้ค่า noShowPax และเริ่มจากหน้า "condition"
-      // ถ้าไม่มี (เปิดจากปุ่ม No Show โดยตรง) ให้ใช้ bookingQuantity และเริ่มจากหน้า "select"
+      // เริ่มต้นที่หน้า Condition เสมอ และกำหนดจำนวน No Show จากค่าที่ส่งเข้ามา
+      setModalType("condition");
       if (noShowPax > 0) {
         setNoShowCount(noShowPax);
-        setModalType("condition"); // ข้ามหน้า select ไปหน้า condition เลย
       } else {
         setNoShowCount(bookingQuantity);
-        setModalType("select");
       }
     }
   }, [isOpen, bookingQuantity, noShowPax]);
 
   useEffect(() => {
     if (!isOpen) {
-      setModalType("select");
+      setModalType("condition");
       setSelectedCondition("");
       // Reset reschedule form when modal closes
       setRescheduleTravelDate("17/12/2025");
@@ -139,14 +139,9 @@ export default function NoShowModal({
   };
 
   const handleConfirm = () => {
-    if (modalType === "select") {
-      setModalType("condition");
-      return;
-    }
     if (modalType === "condition") {
       if (selectedCondition === "fullCharge") {
         onConfirm("noShowCount", { noShowPax: noShowCount, condition: "fullCharge" });
-        onClose();
         return;
       }
       if (selectedCondition === "reschedule") {
@@ -173,25 +168,19 @@ export default function NoShowModal({
           amount: refundAmount,
           noShowPax: noShowCount,
         });
-        onClose();
       }
     } else if (modalType === "reschedule") {
       if (rescheduleTravelDate && rescheduleTripRound) {
-        // ไปหน้า warning ก่อน
-        setModalType("rescheduleWarning");
-        return;
+        // ส่งออกไปให้หน้าหลักแสดง Warning popup ยืนยันอีกครั้ง
+        onConfirm("reschedule", {
+          travelDate: rescheduleTravelDate,
+          tripRound: rescheduleTripRound,
+          additionalFee: parseFloat(additionalFee || "0"),
+          reason: rescheduleReason,
+          suggestion: selectedSuggestion,
+          noShowPax: noShowCount,
+        });
       }
-    } else if (modalType === "rescheduleWarning") {
-      // ยืนยัน Reschedule แล้ว
-      onConfirm("reschedule", {
-        travelDate: rescheduleTravelDate,
-        tripRound: rescheduleTripRound,
-        additionalFee: parseFloat(additionalFee || "0"),
-        reason: rescheduleReason,
-        suggestion: selectedSuggestion,
-        noShowPax: noShowCount,
-      });
-      onClose();
     }
   };
 
@@ -200,13 +189,15 @@ export default function NoShowModal({
       setModalType("reschedule");
       return;
     }
-    setModalType("select");
+    // กลับจากหน้า Reschedule/Refund มาที่หน้า Condition
+    setModalType("condition");
     setSelectedCondition("");
   };
 
   const handleConditionBack = () => {
-    setModalType("select");
+    // ย้อนกลับจากหน้า Condition ให้ปิดโมดัลไปเลย (ไม่มีหน้าจอเลือกจำนวนแล้ว)
     setSelectedCondition("");
+    onClose();
   };
 
   const handleLater = () => {
@@ -947,19 +938,21 @@ export default function NoShowModal({
             </div>
           ) : modalType === "condition" ? (
             <>
-              <div className="flex justify-end items-center gap-4">
-                <button
-                  type="button"
-                  onClick={handleLater}
-                  className="px-5 py-2 bg-[#E3F1FF] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
-                >
-                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Later</span>
-                </button>
-              </div>
+              {!hideLaterButton && (
+                <div className="flex justify-end items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={handleLater}
+                    className="px-5 py-2 bg-[#E3F1FF] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                  >
+                    <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Later</span>
+                  </button>
+                </div>
+              )}
               <div className="flex-1 flex justify-end items-center gap-4">
                 <button
                   type="button"
-                  onClick={handleConditionBack}
+                  onClick={onClose}
                   className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
                 >
                   <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Cancel</span>
@@ -1000,17 +993,30 @@ export default function NoShowModal({
               </button>
             </div>
           ) : (
-            <div className="flex-1 flex justify-end items-start gap-2.5">
-              <div className="flex justify-end items-center gap-4">
+            <div className="flex-1 flex justify-between items-center gap-2.5">
+              {/* Back button มุมซ้ายล่าง ย้อนกลับไปหน้าก่อนหน้า */}
+              <div className="flex justify-start items-center gap-4">
                 <button
                   type="button"
                   onClick={handleBack}
                   className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-blue-700 flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
                 >
-                  <span className="text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Cancel</span>
+                  <span className="text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Back
+                  </span>
                 </button>
               </div>
+              {/* กลุ่มปุ่ม Cancel + Confirm มุมขวาล่าง */}
               <div className="flex justify-end items-center gap-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-zinc-300 flex justify-center items-center gap-2 hover:bg-zinc-50 transition-colors"
+                >
+                  <span className="text-zinc-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Cancel
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={handleConfirm}
@@ -1029,7 +1035,9 @@ export default function NoShowModal({
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >
-                  <span className="text-center text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Confirm</span>
+                  <span className="text-center text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Confirm
+                  </span>
                 </button>
               </div>
             </div>

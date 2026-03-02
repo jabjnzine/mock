@@ -5,11 +5,13 @@ import { useEffect } from "react";
 interface SuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
+  variant?: "checkIn" | "fullCharge" | "reschedule" | "refund";
 }
 
 export default function SuccessModal({
   isOpen,
   onClose,
+  variant = "checkIn",
 }: SuccessModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -21,6 +23,15 @@ export default function SuccessModal({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const message =
+    variant === "fullCharge"
+      ? "Full Charge Confirmed"
+      : variant === "reschedule"
+        ? "Reschedule Confirmed"
+        : variant === "refund"
+          ? "Refund Confirmed"
+          : "Check In Successful";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -54,7 +65,7 @@ export default function SuccessModal({
               Success
             </div>
             <div className="text-center text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
-              Check In Successful
+              {message}
             </div>
           </div>
         </div>

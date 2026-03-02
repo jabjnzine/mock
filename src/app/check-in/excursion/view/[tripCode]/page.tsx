@@ -84,6 +84,7 @@ interface Booking {
   status: "waiting" | "waitingReason" | "checkedIn" | "noShow" | "rescheduled";
   checkedInTime?: string;
   remark?: string;
+  noShowCondition?: string;
 }
 
 export default function CheckInViewPage() {
@@ -101,6 +102,9 @@ export default function CheckInViewPage() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [fabHover, setFabHover] = useState(false);
+  const [noShowModalFromAddCondition, setNoShowModalFromAddCondition] = useState(false);
+  const [warningVariant, setWarningVariant] = useState<"checkIn" | "fullCharge" | "reschedule" | "refund">("checkIn");
+  const [successVariant, setSuccessVariant] = useState<"checkIn" | "fullCharge" | "reschedule" | "refund">("checkIn");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [expandedSections, setExpandedSections] = useState({
     itinerary: false,
@@ -112,6 +116,21 @@ export default function CheckInViewPage() {
   const pendingCheckInBookingIdRef = useRef<string | null>(null);
   const pendingNoShowRef = useRef<{ bookingId: string; noShowPax: number; originalPax: number } | null>(null);
   const pendingNoShowFromCheckInRef = useRef<number | null>(null);
+  const pendingOriginalBookingRef = useRef<{ bookingId: string; checkIn: number; noShow: number; status: Booking["status"] } | null>(null);
+  const pendingRescheduleRef = useRef<{ bookingId: string; payload: unknown } | null>(null);
+  const pendingRefundRef = useRef<{ bookingId: string; payload: unknown } | null>(null);
+  const pendingBulkCheckInIdsRef = useRef<string[] | null>(null);
+
+  const revertPendingCheckInIfAny = () => {
+    if (pendingOriginalBookingRef.current) {
+      const { bookingId, checkIn, noShow, status } = pendingOriginalBookingRef.current;
+      setBookingStates((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, checkIn, noShow, status } : b))
+      );
+    }
+    pendingNoShowFromCheckInRef.current = null;
+    pendingOriginalBookingRef.current = null;
+  };
 
   const toggleBookingSelection = (id: string) => {
     setSelectedBookingIds((prev) => {
@@ -207,6 +226,7 @@ export default function CheckInViewPage() {
       language: "EN",
       status: "noShow",
       remark: "-",
+      noShowCondition: "No-show Full Charge",
     },
   ];
 
@@ -276,6 +296,7 @@ export default function CheckInViewPage() {
 
     if (currentBooking.noShow > 0) {
       setSelectedBooking(currentBooking);
+        setNoShowModalFromAddCondition(false);
       setShowNoShowModal(true);
     } else {
       // อัปเดต status เป็น checkedIn
@@ -313,6 +334,9 @@ export default function CheckInViewPage() {
                 noShow: noShowPax,
                 checkIn,
                 status: newStatus,
+                // Full Charge case: เก็บข้อความ Condition ไว้แสดงใต้การ์ด
+                noShowCondition:
+                  newStatus === "noShow" ? "No-show Full Charge" : b.noShowCondition,
                 ...(newStatus === "checkedIn"
                   ? {
                       checkedInTime: new Date()
@@ -326,6 +350,110 @@ export default function CheckInViewPage() {
       );
       pendingNoShowRef.current = null;
       setSelectedBooking(null);
+      // commit แล้ว เคลียร์ pending check-in เดิม
+      pendingNoShowFromCheckInRef.current = null;
+      pendingOriginalBookingRef.current = null;
+      setSuccessVariant("fullCharge");
+    } else if (pendingRescheduleRef.current) {
+      const { bookingId, payload } = pendingRescheduleRef.current;
+      const wrap = payload && typeof payload === "object" ? (payload as { rescheduleData?: unknown }) : {};
+      const data =
+        wrap.rescheduleData && typeof wrap.rescheduleData === "object"
+          ? (wrap.rescheduleData as { travelDate?: string; tripRound?: string; noShowPax?: number })
+          : {};
+      const booking = bookingStates.find((b) => b.id === bookingId);
+      if (booking) {
+        const origPax = booking.pax;
+        const noShowPax = Number(data.noShowPax ?? 0);
+        const travelDate = data.travelDate ?? tripData.travelDate;
+        const tripRound = data.tripRound ?? tripData.tripRound;
+
+        if (noShowPax >= origPax) {
+          // กรณี Reschedule เต็มจำนวน: ย้าย Booking ไปทริปใหม่ (ไม่ต้องแสดงในหน้านี้)
+          setBookingStates((prev) =>
+            prev.map((b) => (b.id === bookingId ? { ...b, status: "rescheduled" as const } : b))
+          );
+        } else {
+          // กรณี Reschedule บางส่วน: ให้ Booking แสดงอยู่เดิมเป็นสถานะ Check-in
+          // (มีทั้งคนมาและคน Reschedule) พร้อมบันทึกเงื่อนไข No-show เป็นรายละเอียด Reschedule
+          const checkIn = origPax - noShowPax;
+          const conditionText = `Reschedule to ${travelDate} : ${tripRound.replace(":", " : ")}`;
+          setBookingStates((prev) =>
+            prev.map((b) =>
+              b.id === bookingId
+                ? {
+                    ...b,
+                    noShow: noShowPax,
+                    checkIn,
+                    status: "checkedIn" as const,
+                    noShowCondition: conditionText,
+                  }
+                : b
+            )
+          );
+        }
+      }
+      pendingRescheduleRef.current = null;
+      setSelectedBooking(null);
+      setSuccessVariant("reschedule");
+      // commit แล้ว เคลียร์ pending check-in เดิม
+      pendingNoShowFromCheckInRef.current = null;
+      pendingOriginalBookingRef.current = null;
+      pendingBulkCheckInIdsRef.current = null;
+    } else if (pendingRefundRef.current) {
+      const { bookingId, payload } = pendingRefundRef.current;
+      const p = payload && typeof payload === "object" ? (payload as { noShowPax?: number }) : {};
+      const n = Number(p.noShowPax ?? 0);
+      const booking = bookingStates.find((b) => b.id === bookingId);
+      if (booking) {
+        const orig = booking.pax;
+        const newStatus = n === orig ? ("noShow" as const) : ("checkedIn" as const);
+        const checkIn = orig - n;
+        setBookingStates((prev) =>
+          prev.map((b) =>
+            b.id === bookingId
+              ? {
+                  ...b,
+                  noShow: n,
+                  checkIn,
+                  status: newStatus,
+                  noShowCondition: newStatus === "noShow" ? "Refund" : b.noShowCondition,
+                }
+              : b
+          )
+        );
+      }
+      pendingRefundRef.current = null;
+      setSelectedBooking(null);
+      setSuccessVariant("refund");
+      // commit แล้ว เคลียร์ pending check-in เดิม
+      pendingNoShowFromCheckInRef.current = null;
+      pendingOriginalBookingRef.current = null;
+      pendingBulkCheckInIdsRef.current = null;
+    } else if (pendingBulkCheckInIdsRef.current && pendingBulkCheckInIdsRef.current.length > 0) {
+      const idsToCheckIn = new Set(pendingBulkCheckInIdsRef.current);
+      setBookingStates((prev) =>
+        prev.map((b) =>
+          idsToCheckIn.has(b.id) && b.status === "waiting"
+            ? {
+                ...b,
+                checkIn: b.pax,
+                noShow: 0,
+                status: "checkedIn" as const,
+                checkedInTime: new Date()
+                  .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                  .slice(0, 5),
+              }
+            : b
+        )
+      );
+      pendingBulkCheckInIdsRef.current = null;
+      setSelectedBooking(null);
+      setSelectedBookingIds(new Set());
+      setSuccessVariant("checkIn");
+      // ไม่เกี่ยวกับ pending check-in แบบเดี่ยว
+      pendingNoShowFromCheckInRef.current = null;
+      pendingOriginalBookingRef.current = null;
     } else {
       const bookingIdToConfirm = pendingCheckInBookingIdRef.current ?? selectedBooking?.id;
       if (bookingIdToConfirm) {
@@ -344,6 +472,7 @@ export default function CheckInViewPage() {
         );
         pendingCheckInBookingIdRef.current = null;
         setSelectedBooking(null);
+        setSuccessVariant("checkIn");
       }
     }
     setShowWarningModal(false);
@@ -597,17 +726,21 @@ export default function CheckInViewPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const firstId = Array.from(selectedBookingIds)[0];
-                          const b = filteredBookings.find((x) => x.id === firstId);
-                          if (b) {
-                            // ปิด modal อื่นๆ ทั้งหมดก่อนเปิด CheckInModal
-                            setShowWarningModal(false);
-                            setShowNoShowModal(false);
-                            setShowCheckInModal(false);
-                            setSelectedBooking(b);
-                            // เปิด CheckInModal หลังจากปิด modal อื่นๆ แล้ว
-                            setTimeout(() => setShowCheckInModal(true), 0);
-                          }
+                          const ids = Array.from(selectedBookingIds);
+                          if (ids.length === 0) return;
+
+                          // เก็บรายการ bookingId ที่จะทำ Bulk Check-in (เฉพาะ status waiting)
+                          const waitingIds = ids.filter((id) => {
+                            const b = bookingStates.find((bk) => bk.id === id);
+                            return b && b.status === "waiting";
+                          });
+
+                          if (waitingIds.length === 0) return;
+
+                          pendingBulkCheckInIdsRef.current = waitingIds;
+                          // เคสนี้เป็นการ Check-in เต็ม pax ของทุก booking ที่เลือก
+                          setWarningVariant("checkIn");
+                          setShowWarningModal(true);
                         }}
                         className="px-5 py-2 bg-[#1CB579] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
                       >
@@ -743,7 +876,8 @@ export default function CheckInViewPage() {
                             </div>
                           </div>
                           <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.5px] outline-[#D1D4DA]" />
-                          <div className="self-stretch p-3 rounded-lg inline-flex justify-start items-center gap-6">
+                          {/* Total Check in + Time Stamp row */}
+                          <div className="self-stretch rounded-lg inline-flex justify-start items-center gap-6">
                             <div className="flex-1 flex justify-start items-center gap-6">
                               <div className="text-[#2A2A2A] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Total Check in</div>
                               <div className="flex justify-start items-center gap-3">
@@ -769,7 +903,10 @@ export default function CheckInViewPage() {
                                     setShowWarningModal(false);
                                     setShowCheckInModal(false);
                                     setShowNoShowModal(false);
+                                    // ตั้งค่า No Show ให้เท่ากับจำนวนทั้งหมด และข้ามหน้าเลือกจำนวนไปหน้า Condition ทันที
+                                    pendingNoShowFromCheckInRef.current = booking.pax;
                                     setSelectedBooking(booking);
+                                    setNoShowModalFromAddCondition(false);
                                     // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
                                     setTimeout(() => setShowNoShowModal(true), 0);
                                   }}
@@ -813,6 +950,7 @@ export default function CheckInViewPage() {
                                   setShowCheckInModal(false);
                                   setShowNoShowModal(false);
                                   setSelectedBooking(booking);
+                                    setNoShowModalFromAddCondition(true);
                                   // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
                                   setTimeout(() => setShowNoShowModal(true), 0);
                                 }}
@@ -834,11 +972,22 @@ export default function CheckInViewPage() {
                               <div className="flex justify-start items-center gap-2">
                                 <ClockIcon className="size-4 text-[#848484] shrink-0" />
                                 <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
-                                  Time Stamp  {booking.checkedInTime || "06 :30"}
+                                  {tripData.travelDate} : {tripData.tripRound.replace(":", " : ")}
                                 </span>
                               </div>
                             )}
                           </div>
+                          {/* No-show Condition Row - แสดงเมื่อ booking นี้มี No Show */}
+                          {booking.noShow > 0 && (
+                            <div className="self-stretch inline-flex justify-start items-start gap-1 mt-2">
+                              <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
+                                No-show Condition :
+                              </div>
+                              <div className="text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">
+                                {booking.noShowCondition || "-"}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -919,6 +1068,7 @@ export default function CheckInViewPage() {
       {/* Modals */}
       <WarningModal
         isOpen={showWarningModal}
+        variant={warningVariant}
         onConfirm={processCheckIn}
         onCancel={() => {
           // ปิด modal อื่นๆ ทั้งหมดเมื่อปิด WarningModal
@@ -926,7 +1076,11 @@ export default function CheckInViewPage() {
           setShowNoShowModal(false);
           pendingCheckInBookingIdRef.current = null;
           pendingNoShowRef.current = null;
-          pendingNoShowFromCheckInRef.current = null;
+          pendingRescheduleRef.current = null;
+          pendingRefundRef.current = null;
+          pendingBulkCheckInIdsRef.current = null;
+          // ถ้ามี pending check-in แล้วผู้ใช้ยกเลิกที่ Warning ให้ revert
+          revertPendingCheckInIfAny();
           setShowWarningModal(false);
         }}
       />
@@ -935,6 +1089,7 @@ export default function CheckInViewPage() {
 
       <SuccessModal
         isOpen={showSuccess}
+        variant={successVariant}
         onClose={() => setShowSuccess(false)}
       />
 
@@ -949,7 +1104,18 @@ export default function CheckInViewPage() {
               setShowCheckInModal(false);
               setShowNoShowModal(false);
               setSelectedBooking(null);
+              // ถ้ามีข้อมูล Check-in ที่มาจาก CheckInModal และยังไม่ยืนยัน ให้ revert กลับเป็นค่าก่อนหน้า
+              if (pendingNoShowFromCheckInRef.current !== null && pendingOriginalBookingRef.current) {
+                const { bookingId, checkIn, noShow, status } = pendingOriginalBookingRef.current;
+                setBookingStates((prev) =>
+                  prev.map((b) =>
+                    b.id === bookingId ? { ...b, checkIn, noShow, status } : b
+                  )
+                );
+              }
               pendingNoShowFromCheckInRef.current = null;
+              pendingOriginalBookingRef.current = null;
+              setNoShowModalFromAddCondition(false);
             }}
             checkInPax={bookingForModal.checkIn}
             bookingQuantity={bookingForModal.pax}
@@ -959,6 +1125,7 @@ export default function CheckInViewPage() {
             tripRound={tripData.tripRound}
             customerName={bookingForModal.customerName}
             pricePerPax={1500}
+            hideLaterButton={noShowModalFromAddCondition}
             onConfirm={(condition, data) => {
               const payload = data && typeof data === "object" ? data as { noShowPax?: number; condition?: string; [k: string]: unknown } : {};
               const noShowPax = Number(payload.noShowPax ?? 0);
@@ -973,40 +1140,32 @@ export default function CheckInViewPage() {
                   };
                   setShowNoShowModal(false);
                   setSelectedBooking(null);
+                  setWarningVariant("fullCharge");
                   setShowWarningModal(true);
                 }
               }
               if (condition === "reschedule") {
-                // เมื่อ Reschedule ให้ตั้ง status เป็น "rescheduled" และลบออกจากการ Check In
-                setBookingStates((prev) =>
-                  prev.map((b) =>
-                    b.id === selectedBooking.id
-                      ? { ...b, status: "rescheduled" as const }
-                      : b
-                  )
-                );
+                pendingRescheduleRef.current = {
+                  bookingId: selectedBooking.id,
+                  payload: {
+                    bookingNo: bookingForModal.bookingNo,
+                    rescheduleData: payload,
+                  },
+                };
                 setShowNoShowModal(false);
                 setSelectedBooking(null);
-                // แสดง success message หรือ notification (ถ้ามี)
-                console.log("Booking rescheduled:", {
-                  bookingNo: bookingForModal.bookingNo,
-                  rescheduleData: payload,
-                });
+                setWarningVariant("reschedule");
+                setShowWarningModal(true);
               }
               if (condition === "refund") {
-                const n = Number(payload.noShowPax ?? 0);
-                const orig = bookingForModal.pax;
-                const newStatus = n === orig ? ("noShow" as const) : ("checkedIn" as const);
-                const checkIn = orig - n;
-                setBookingStates((prev) =>
-                  prev.map((b) =>
-                    b.id === selectedBooking.id
-                      ? { ...b, noShow: n, checkIn, status: newStatus }
-                      : b
-                  )
-                );
+                pendingRefundRef.current = {
+                  bookingId: selectedBooking.id,
+                  payload,
+                };
                 setShowNoShowModal(false);
                 setSelectedBooking(null);
+                setWarningVariant("refund");
+                setShowWarningModal(true);
               }
             }}
             onLater={(noShowPaxFromModal: number) => {
@@ -1018,8 +1177,12 @@ export default function CheckInViewPage() {
                     : b
                 )
               );
+              // ยืนยันให้สถานะ Waiting Reason คงอยู่ ไม่ต้อง revert กลับ
+              pendingNoShowFromCheckInRef.current = null;
+              pendingOriginalBookingRef.current = null;
               setShowNoShowModal(false);
               setSelectedBooking(null);
+              setNoShowModalFromAddCondition(false);
             }}
           />
         );
@@ -1031,12 +1194,8 @@ export default function CheckInViewPage() {
           <CheckInModal
             isOpen={showCheckInModal}
             onClose={() => {
-              // ปิด modal อื่นๆ ด้วยเมื่อปิด CheckInModal
-              setShowWarningModal(false);
-              setShowNoShowModal(false);
+              // ปิดเฉพาะ CheckInModal เอง ไม่ยุ่งกับ NoShow / Warning
               setShowCheckInModal(false);
-              setSelectedBooking(null);
-              pendingNoShowFromCheckInRef.current = null;
             }}
             bookingNo={bookingForModal.bookingNo}
             travelDate={tripData.travelDate}
@@ -1046,6 +1205,14 @@ export default function CheckInViewPage() {
             initialCheckIn={bookingForModal.checkIn}
             onConfirm={(checkInCount) => {
               const noShowCount = bookingForModal.pax - checkInCount;
+              // เก็บค่าก่อนหน้าไว้เพื่อ revert ได้ถ้าผู้ใช้กดยกเลิกที่หน้า Condition
+              pendingOriginalBookingRef.current = {
+                bookingId: bookingForModal.id,
+                checkIn: bookingForModal.checkIn,
+                noShow: bookingForModal.noShow,
+                status: bookingForModal.status,
+              };
+              // อัปเดตจำนวน Check-in / No Show ชั่วคราว
               setBookingStates((prev) =>
                 prev.map((b) =>
                   b.id === selectedBooking.id
@@ -1066,6 +1233,7 @@ export default function CheckInViewPage() {
                   setShowNoShowModal(true);
                 } else {
                   pendingCheckInBookingIdRef.current = selectedBooking.id;
+                  setWarningVariant("checkIn");
                   setShowWarningModal(true);
                 }
               }, 100);

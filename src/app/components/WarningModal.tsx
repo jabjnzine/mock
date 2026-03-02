@@ -4,14 +4,25 @@ interface WarningModalProps {
   isOpen: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  variant?: "checkIn" | "fullCharge" | "reschedule" | "refund";
 }
 
 export default function WarningModal({
   isOpen,
   onConfirm,
   onCancel,
+  variant = "checkIn",
 }: WarningModalProps) {
   if (!isOpen) return null;
+
+  const message =
+    variant === "fullCharge"
+      ? "Do you want to confirm Full Charge?"
+      : variant === "reschedule"
+        ? "Do you want to confirm Reschedule?"
+        : variant === "refund"
+          ? "Do you want to confirm Refund?"
+          : "Do you want to Check In ?";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -49,7 +60,7 @@ export default function WarningModal({
               Warning
             </div>
             <div className="text-center text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
-              Do you want to Check In ?
+              {message}
             </div>
           </div>
         </div>
