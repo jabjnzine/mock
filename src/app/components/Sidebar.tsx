@@ -62,56 +62,8 @@ export default function Sidebar() {
             </button>
           </div>
 
-          {/* Menu */}
+          {/* Menu — เหลือเฉพาะหมวด Check In */}
           <div className="self-stretch flex flex-col justify-start items-start gap-1">
-            {/* Dashboard */}
-            <Link
-              href="/"
-              className={`${rowBase} ${isActive("/") ? rowActive : rowDefault}`}
-            >
-              <HomeIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Dashboard</span>}
-            </Link>
-
-            {!isCollapsed && <div className={divider} />}
-
-            {/* Section: Management (pill only) */}
-            {!isCollapsed && <div className={sectionPill}>Management</div>}
-
-            {/* Booking, Excursion, Pick Up, Drop Off — direct links */}
-            <Link
-              href="/booking"
-              className={`${rowBase} ${isActive("/booking") ? rowActive : rowDefault}`}
-            >
-              <CalendarIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Booking</span>}
-            </Link>
-            <Link
-              href="/excursion"
-              className={`${rowBase} ${isActive("/excursion") ? rowActive : rowDefault}`}
-            >
-              <CalendarIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Excursion</span>}
-            </Link>
-            <Link
-              href="/pickup"
-              className={`${rowBase} ${isActive("/pickup") ? rowActive : rowDefault}`}
-            >
-              <TruckIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="text-base font-normal leading-6">Pick Up Transport</span>
-              )}
-            </Link>
-            <Link
-              href="/dropoff"
-              className={`${rowBase} ${isActive("/dropoff") ? rowActive : rowDefault}`}
-            >
-              <TruckIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="text-base font-normal leading-6">Drop Off Transport</span>
-              )}
-            </Link>
-
             {/* Check In — expandable */}
             <div className="self-stretch flex flex-col gap-2">
               <button
@@ -211,60 +163,6 @@ export default function Sidebar() {
                 </>
               )}
             </div>
-
-            {/* Expense, Vehicle Task, Guide Task */}
-            <Link
-              href="/expense"
-              className={`${rowBase} ${isActive("/expense") ? rowActive : rowDefault}`}
-            >
-              <CurrencyDollarIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Expense</span>}
-            </Link>
-            <Link
-              href="/vehicle-task"
-              className={`${rowBase} ${isActive("/vehicle-task") ? rowActive : rowDefault}`}
-            >
-              <TruckIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="text-base font-normal leading-6">Vehicle Task</span>
-              )}
-            </Link>
-            <Link
-              href="/guide-task"
-              className={`${rowBase} ${isActive("/guide-task") ? rowActive : rowDefault}`}
-            >
-              <UserGroupIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="text-base font-normal leading-6">Guide Task</span>
-              )}
-            </Link>
-
-            {!isCollapsed && <div className={divider} />}
-
-            {/* Section: Setting (pill only) */}
-            {!isCollapsed && <div className={sectionPill}>Setting</div>}
-
-            <Link
-              href="/settings/program"
-              className={`${rowBase} ${isActive("/settings/program") ? rowActive : rowDefault}`}
-            >
-              <Cog6ToothIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Program</span>}
-            </Link>
-            <Link
-              href="/settings/seller"
-              className={`${rowBase} ${isActive("/settings/seller") ? rowActive : rowDefault}`}
-            >
-              <Cog6ToothIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Seller</span>}
-            </Link>
-            <Link
-              href="/settings/vehicle"
-              className={`${rowBase} ${isActive("/settings/vehicle") ? rowActive : rowDefault}`}
-            >
-              <TruckIcon className="size-6 flex-shrink-0" />
-              {!isCollapsed && <span className="text-base font-normal leading-6">Vehicle</span>}
-            </Link>
           </div>
         </div>
 

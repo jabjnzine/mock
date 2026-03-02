@@ -340,6 +340,9 @@ const TripTable: React.FC<TripTableProps> = ({ trips, totals, onTripClick }) => 
         border: "1px solid #D9D9D9",
         boxShadow: "-2px 0 4px rgba(0,0,0,0.25)",
         flexShrink: 0,
+        position: "sticky",
+        right: 0,
+        zIndex: 1,
       }}>
         {/* Header */}
         <div style={{ display: "flex" }}>

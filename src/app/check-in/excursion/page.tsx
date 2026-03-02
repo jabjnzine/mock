@@ -9,6 +9,7 @@ import { Squares2X2Icon } from "@heroicons/react/24/solid";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import BookingDetails from "../../components/BookingDetails";
 
 const EXAMPLE_BOOKING_CODE = "TQC417792";
 
@@ -60,6 +61,9 @@ export default function CheckInExcursionPage() {
   const [showTS0001Modal, setShowTS0001Modal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [ts0001CheckedInCodes, setTs0001CheckedInCodes] = useState<string[]>([]);
+  const [showBookingDrawer, setShowBookingDrawer] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -68,6 +72,37 @@ export default function CheckInExcursionPage() {
     if (!mounted) return;
     setTs0001CheckedInCodes(getCheckedInBookingCodes());
   }, [mounted, showTS0001Modal]);
+
+  const openBookingDrawer = (code: string) => {
+    setDrawerBookingId(code);
+    setShowBookingDrawer(true);
+    // ให้ animation เริ่มหลังจาก mount แล้ว
+    setTimeout(() => setDrawerOpen(true), 0);
+  };
+
+  const closeBookingDrawer = () => {
+    // เล่น animation ปิดก่อน
+    setDrawerOpen(false);
+    setTimeout(() => {
+      setShowBookingDrawer(false);
+      setDrawerBookingId(null);
+    }, 300); // ต้องตรงกับ duration ของ transition
+  };
+
+  const addCheckedInCode = (code: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY_CHECKED_IN);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(code)) {
+        const updated = [...list, code];
+        sessionStorage.setItem(STORAGE_KEY_CHECKED_IN, JSON.stringify(updated));
+        setTs0001CheckedInCodes(updated);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const handleCheckIn = () => {
     const id = bookingId.trim();
@@ -80,13 +115,14 @@ export default function CheckInExcursionPage() {
       setShowTS0001Modal(true);
       return;
     }
-    router.push(`/check-in/excursion/view/booking/${encodeURIComponent(id)}`);
+    // สำหรับ booking อื่น ๆ ให้เปิดหน้า View Booking แบบ Drawer
+    openBookingDrawer(id);
   };
 
   const handleProceedToView = (bookingCode: string) => {
     setShowExampleModal(false);
     setShowTS0001Modal(false);
-    router.push(`/check-in/excursion/view/booking/${encodeURIComponent(bookingCode)}`);
+    openBookingDrawer(bookingCode);
   };
 
   const handleClearCheckedInList = () => {
@@ -95,12 +131,20 @@ export default function CheckInExcursionPage() {
   };
 
   const handleScan = () => {
+    // เดโม่: เมื่อกดสแกน ให้กรอกหมายเลข Booking ตัวอย่าง TS0001 ลงในช่องให้เลย
+    const demoCode = "TS0001";
+    setBookingId(demoCode);
+
     if (typeof window !== "undefined" && "BarcodeDetector" in window) {
       (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector &&
         alert("ฟีเจอร์สแกนจะเปิดกล้อง (รองรับเมื่อเชื่อม API/กล้องแล้ว)");
     }
+
     const input = document.querySelector<HTMLInputElement>('input[name="booking-id"]');
-    input?.focus();
+    if (input) {
+      input.focus();
+      input.select();
+    }
   };
 
   return (
@@ -181,10 +225,64 @@ export default function CheckInExcursionPage() {
               </div>
             </div>
           </div>
-          </div>
-        </main>
+    </div>
+    </main>
         <Footer />
       </div>
+
+      {/* Drawer: View Booking */}
+      {mounted &&
+        showBookingDrawer &&
+        drawerBookingId &&
+        createPortal(
+          <div
+            className={`fixed inset-0 z-[9998] flex bg-black/40 transition-opacity duration-300 ${
+              drawerOpen ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <div
+              className={`h-full w-full bg-stone-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${
+                drawerOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Booking
+                  </span>
+                  <span className="text-zinc-800">/</span>
+                  <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                    View Booking
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeBookingDrawer}
+                  className="size-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-zinc-800"
+                  aria-label="ปิด Drawer"
+                >
+                  <XMarkIcon className="size-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="w-full max-w-[1040px] mx-auto">
+                  <BookingDetails
+                    bookingId={drawerBookingId}
+                    onCancel={closeBookingDrawer}
+                    onCheckIn={() => {
+                      addCheckedInCode(drawerBookingId);
+                      closeBookingDrawer();
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Modal ตัวอย่าง: เมื่อพิมพ์ TQC417792 - ใช้ Portal เพื่อให้อยู่เหนือทุกชั้น */}
       {mounted &&
