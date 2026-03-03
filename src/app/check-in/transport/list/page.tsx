@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input, Button } from "@heroui/react";
 import {
   MagnifyingGlassIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CalendarIcon,
 } from "@heroicons/react/24/outline";
 import Sidebar from "../../../components/Sidebar";
 import TripTable, { type Trip } from "../../../components/TripTable";
 import Header from "../../../components/Header";
 import Footer from "../../../components/Footer";
+import { getRegistrationDisplay, getPersonnelDisplay } from "@/app/lib/check-in-trip";
 
 // ใช้ชุด Summary Card เดียวกับ Excursion
 const IconWaiting = () => (
@@ -69,81 +70,35 @@ export default function TransportCheckInListPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState("17/12/2025");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("pending");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
 
-  // Mock data — ใช้ Trip Code ขึ้นต้นด้วย TS
+  // Mock data — Transport ใช้เฉพาะ TF25Z1PW; Registration/Personnel Relate กับ showDetailModal
   const pendingTrips: TripData[] = [
     {
       id: 1,
-      tripCode: "TS25Z1PW",
+      tripCode: "TF25Z1PW",
       travelDate: "17/12/2025",
       tripType: "Join In",
       tripRound: "07 : 30",
-      program: "Phuket : Maya Bay, Phi Phi...",
-      registration: "Speed Catamaran",
-      personnel: "Capt. Trunk",
+      program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      registration: getRegistrationDisplay("TF25Z1PW", true),
+      personnel: getPersonnelDisplay("TF25Z1PW", true),
       guide: "G. Peter (094-4313995)",
       pax: 20,
       waiting: 5,
       checkedIn: 8,
       noShow: 7,
     },
-    {
-      id: 2,
-      tripCode: "TS2581C4",
-      travelDate: "17/12/2025",
-      tripType: "Join In",
-      tripRound: "07 : 30",
-      program: "Damnoen + Buffalo Cafe + Maek...",
-      registration: "BUS(39) กข-1001",
-      personnel: "Somchai Prasert",
-      guide: "G.Jannie (080-2093565), N/A",
-      pax: 39,
-      waiting: 0,
-      checkedIn: 38,
-      noShow: 1,
-      hasAlert: true,
-    },
-    {
-      id: 3,
-      tripCode: "TS255D2C",
-      travelDate: "17/12/2025",
-      tripType: "Join In",
-      tripRound: "00 : 00",
-      program: "Bangkok: Grand Palace, Wat ...",
-      registration: "Guide Only (20)",
-      personnel: "-",
-      guide: "Guide Tom 068-4313887",
-      pax: 20,
-      waiting: 10,
-      checkedIn: 10,
-      noShow: 0,
-    },
   ];
 
-  const completedTrips: TripData[] = [
-    {
-      id: 4,
-      tripCode: "TS25ABC1",
-      travelDate: "16/12/2025",
-      tripType: "Join In",
-      tripRound: "08:00",
-      program: "Completed Trip Example",
-      registration: "BUS(20)",
-      personnel: "Driver Name",
-      guide: "-",
-      pax: 20,
-      waiting: 0,
-      checkedIn: 20,
-      noShow: 0,
-    },
-  ];
+  const completedTrips: TripData[] = [];
 
-  const trips = activeTab === "pending" ? pendingTrips : completedTrips;
+  const allTrips = [...pendingTrips, ...completedTrips];
+  const trips = activeTab === "all" ? allTrips : activeTab === "pending" ? pendingTrips : completedTrips;
 
-  // Summary
+  // Summary (จาก trips ตาม tab ที่เลือก)
   const totalWaiting = trips.reduce((sum, trip) => sum + trip.waiting, 0);
   const totalCheckedIn = trips.reduce((sum, trip) => sum + trip.checkedIn, 0);
   const totalNoShow = trips.reduce((sum, trip) => sum + trip.noShow, 0);
@@ -170,161 +125,117 @@ export default function TransportCheckInListPage() {
         {/* Header */}
         <Header />
 
-        {/* Main Content Area — ให้เหมือน Excursion > Check In List */}
+        {/* Main Content Area — เหมือน Excursion Check In List */}
         <main className="flex-1 overflow-y-auto p-6 bg-stone-50 flex flex-col">
-          <div className="w-full max-w-[1616px] mx-auto flex-1">
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-2 mb-6">
-              <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                Check In
-              </span>
-              <span className="text-zinc-800">/</span>
-              <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                Transport
-              </span>
-              <span className="text-zinc-800">/</span>
-              <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                Check In List
-              </span>
-            </div>
-
-            {/* Header Actions */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                {/* Date Picker */}
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-gray-500" />
+          <div className="w-full max-w-[1616px] mx-auto flex-1 inline-flex flex-col justify-start items-end gap-6">
+            {/* แถวบน: Breadcrumb ซ้าย | Calendar, Search, Export ขวา */}
+            <div className="self-stretch inline-flex justify-between items-center">
+              <div className="flex justify-start items-center gap-2">
+                <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Check In</span>
+                <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+                <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Check In List</span>
+              </div>
+              <div className="flex justify-end items-center gap-6">
+                <div className="w-80 px-3 py-2 bg-white rounded-lg border border-[#d9d9d9] inline-flex justify-start items-center gap-2">
+                  <CalendarIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
                   <input
                     type="date"
                     value={selectedDate.split("/").reverse().join("-")}
                     onChange={(e) => {
-                      const date = e.target.value.split("-").reverse().join("/");
-                      setSelectedDate(date);
+                      const [y, m, d] = e.target.value.split("-");
+                      setSelectedDate(`${d}/${m}/${y}`);
                     }}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight bg-transparent border-0 outline-none"
                   />
                 </div>
-
-                {/* Search */}
-                <div className="relative">
-                  <Input
+                <div className="w-80 px-3 py-2 bg-white rounded-lg border border-[#d9d9d9] inline-flex justify-start items-center gap-2">
+                  <MagnifyingGlassIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+                  <input
                     type="text"
                     placeholder="Enter search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    classNames={{
-                      base: "w-64",
-                      input: "text-sm",
-                      inputWrapper: "bg-white border-gray-300 h-10",
-                    }}
-                    startContent={
-                      <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-                    }
+                    className="flex-1 min-w-0 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight bg-transparent border-0 outline-none placeholder:text-[#b9b9b9]"
                   />
                 </div>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-white rounded-lg border border-[#d9d9d9] inline-flex items-center gap-2"
+                >
+                  <svg className="w-6 h-6 text-[#2a2a2a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Export</span>
+                  <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={2} />
+                </button>
+                <div className="w-10 self-stretch border-l border-[#d9d9d9]" aria-hidden />
               </div>
-
-              {/* Export Button */}
-              <Button
-                variant="bordered"
-                className="border-blue-600 text-blue-600"
-                endContent={<ChevronDownIcon className="w-4 h-4" />}
-              >
-                Export
-              </Button>
             </div>
 
-            {/* Summary Cards */}
-            <div className="w-full grid grid-cols-5 gap-6 mb-6">
-              {/* Waiting */}
-              <div className="min-w-0 p-6 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-                <div className="w-full flex flex-col justify-start items-start gap-3">
-                  <div className="w-full flex justify-start items-start gap-4">
-                    <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
-                      <div className="text-[#1A1A1A] text-[28px] font-normal leading-10">
-                        {totalWaiting}
-                      </div>
-                      <div className="text-[#1A1A1A] text-base font-normal leading-6">
-                        Waiting
-                      </div>
+            {/* Summary Cards — 5 การ์ดแถวเดียวกัน */}
+            <div className="w-full grid grid-cols-5 gap-6">
+              <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 flex flex-col justify-start items-start gap-2">
+                      <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{totalWaiting}</div>
+                      <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Waiting</div>
                     </div>
-                    <div className="p-2.5 bg-[#FFF2CA] rounded-xl flex justify-center items-center shrink-0">
+                    <div className="p-2.5 bg-[#fff1ca] rounded-xl flex justify-center items-center shrink-0">
                       <IconWaiting />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Completed */}
-              <div className="min-w-0 p-6 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-                <div className="w-full flex flex-col justify-start items-start gap-3">
-                  <div className="w-full flex justify-start items-start gap-4">
-                    <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
-                      <div className="text-[#1A1A1A] text-[28px] font-normal leading-10">
-                        {totalCheckedIn}
-                      </div>
-                      <div className="text-[#1A1A1A] text-base font-normal leading-6">
-                        Checked In
-                      </div>
+              <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 flex flex-col justify-start items-start gap-2">
+                      <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{totalCheckedIn}</div>
+                      <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Checked In</div>
                     </div>
-                    <div className="p-2.5 bg-[#DDF7EC] rounded-xl flex justify-center items-center shrink-0">
+                    <div className="p-2.5 bg-[#e6f3e6] rounded-xl flex justify-center items-center shrink-0">
                       <IconCompleted />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* No show */}
-              <div className="min-w-0 p-6 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-                <div className="w-full flex flex-col justify-start items-start gap-3">
-                  <div className="w-full flex justify-start items-start gap-4">
-                    <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
-                      <div className="text-[#1A1A1A] text-[28px] font-normal leading-10">
-                        {totalNoShow}
-                      </div>
-                      <div className="text-[#1A1A1A] text-base font-normal leading-6">
-                        No show
-                      </div>
+              <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 flex flex-col justify-start items-start gap-2">
+                      <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{totalNoShow}</div>
+                      <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">No show</div>
                     </div>
-                    <div className="p-2.5 bg-[#FFE4E4] rounded-xl flex justify-center items-center shrink-0">
+                    <div className="p-2.5 bg-[#ffc3c3] rounded-xl flex justify-center items-center shrink-0">
                       <IconNoShow />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Amount Trip */}
-              <div className="min-w-0 p-6 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-                <div className="w-full flex flex-col justify-start items-start gap-3">
-                  <div className="w-full flex justify-start items-start gap-4">
-                    <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
-                      <div className="text-[#1A1A1A] text-[28px] font-normal leading-10">
-                        {totalTrips}
-                      </div>
-                      <div className="text-[#1A1A1A] text-base font-normal leading-6">
-                        Amount Trip
-                      </div>
+              <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 flex flex-col justify-start items-start gap-2">
+                      <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{totalTrips}</div>
+                      <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Amount Trip</div>
                     </div>
-                    <div className="p-2.5 bg-[#FFE7DC] rounded-xl flex justify-center items-center shrink-0">
+                    <div className="p-2.5 bg-[#ffcaad] rounded-xl flex justify-center items-center shrink-0">
                       <IconAmountTrip />
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Amount Pax */}
-              <div className="min-w-0 p-6 bg-white rounded-xl outline outline-1 outline-offset-[-1px] outline-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-                <div className="w-full flex flex-col justify-start items-start gap-3">
-                  <div className="w-full flex justify-start items-start gap-4">
-                    <div className="flex-1 min-w-0 flex flex-col justify-start items-start gap-2">
-                      <div className="text-[#1A1A1A] text-[28px] font-normal leading-10">
-                        {totalPax}
-                      </div>
-                      <div className="text-[#1A1A1A] text-base font-normal leading-6">
-                        Amount Pax
-                      </div>
+              <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 flex flex-col justify-start items-start gap-2">
+                      <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{totalPax}</div>
+                      <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Amount Pax</div>
                     </div>
-                    <div className="p-2.5 bg-[#DBFAE6] rounded-xl flex justify-center items-center shrink-0">
+                    <div className="p-2.5 bg-[#e6f3e6] rounded-xl flex justify-center items-center shrink-0">
                       <IconAmountPax />
                     </div>
                   </div>
@@ -332,8 +243,46 @@ export default function TransportCheckInListPage() {
               </div>
             </div>
 
-            {/* Trip Table */}
-            <div className="w-full max-w-[1616px] mx-auto">
+            {/* Tab Status — All, Pending, Completed */}
+            <div className="self-stretch flex flex-col justify-start items-start gap-2">
+              <div className="self-stretch inline-flex justify-start items-center gap-6">
+                <div className="flex-1 flex justify-start items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("all"); setCurrentPage(1); }}
+                    className={`p-2 rounded-sm flex justify-center items-center gap-2 ${activeTab === "all" ? "border-b-4 border-[#fe7931] text-[#265ed6]" : "text-[#142b41]"}`}
+                  >
+                    <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">All</span>
+                    <span className="px-[7px] bg-[#265ed6] rounded-md text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                      {pendingTrips.length + completedTrips.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("pending"); setCurrentPage(1); }}
+                    className={`p-2 rounded-sm flex justify-center items-center gap-2 ${activeTab === "pending" ? "border-b-4 border-[#fe7931] text-[#265ed6]" : "text-[#142b41]"}`}
+                  >
+                    <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Pending</span>
+                    <span className="px-[7px] bg-[#265ed6] rounded-md text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                      {pendingTrips.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab("completed"); setCurrentPage(1); }}
+                    className={`p-2 rounded-sm flex justify-center items-center gap-2 ${activeTab === "completed" ? "border-b-4 border-[#fe7931] text-[#265ed6]" : "text-[#142b41]"}`}
+                  >
+                    <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Completed</span>
+                    <span className="px-[7px] bg-[#265ed6] rounded-md text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                      {completedTrips.length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ตารางทริป */}
+            <div className="self-stretch overflow-x-auto">
               <TripTable
                 trips={paginatedTrips.map(
                   (t): Trip => ({
@@ -363,51 +312,79 @@ export default function TransportCheckInListPage() {
               />
             </div>
 
-            {/* Pagination (เลขอย่างง่าย) */}
-            <div className="mt-6 flex items-center justify-between text-sm text-gray-600">
-              <div>
-                Showing{" "}
-                <span className="font-medium">
-                  {startIndex + 1}-{Math.min(endIndex, trips.length)}
-                </span>{" "}
-                of <span className="font-medium">{trips.length}</span> trips
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                <span>
-                  Page {currentPage} of {totalPages || 1}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentPage((p) => (p < totalPages ? p + 1 : p))
-                  }
-                  disabled={currentPage >= totalPages}
-                  className="px-3 py-1 rounded border border-gray-300 disabled:opacity-50"
-                >
-                  Next
-                </button>
+            {/* Pagination — เหมือน Excursion */}
+            <div className="w-full h-6 flex justify-end items-center gap-6 mt-4">
+              <div className="h-6 px-2 bg-white rounded border border-[#b9b9b9] flex justify-center items-center gap-1 relative">
                 <select
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="ml-4 border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="text-[#3e3939] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight bg-transparent border-0 outline-none cursor-pointer appearance-none pr-6"
                 >
-                  {[5, 10, 15, 20].map((n) => (
-                    <option key={n} value={n}>
-                      {n} / page
-                    </option>
-                  ))}
+                  <option value={15}>15 / page</option>
+                  <option value={30}>30 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
                 </select>
+                <ChevronDownIcon className="w-4 h-4 text-[#3e3939] absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+              <div className="flex justify-start items-start gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="w-6 h-6 flex items-center justify-center bg-white rounded border border-[#e1e1e1] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronDownIcon className="w-4 h-4 text-[#3e3939] rotate-90" />
+                </button>
+                <div className="flex justify-start items-start gap-2">
+                  {Array.from({ length: Math.min(10, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 10) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 4) {
+                      pageNum = totalPages - 9 + i;
+                    } else {
+                      pageNum = currentPage - 5 + i;
+                    }
+                    if (
+                      (i === 0 && currentPage > 5) ||
+                      (i === 9 && currentPage < totalPages - 4)
+                    ) {
+                      return (
+                        <span key={`ellipsis-${i}`} className="w-6 h-6 px-[9px] flex items-center justify-center text-[#3e3939] text-sm font-['IBM_Plex_Sans_Thai']">
+                          ...
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`min-w-[24px] h-6 px-[9px] rounded flex items-center justify-center text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] ${
+                          currentPage === pageNum
+                            ? "bg-[#2a4b6a] text-white"
+                            : "bg-white border border-[#e1e1e1] text-[#3e3939]"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="w-6 h-6 flex items-center justify-center bg-white rounded border border-[#e1e1e1] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronDownIcon className="w-4 h-4 text-[#3e3939] -rotate-90" />
+                </button>
               </div>
             </div>
           </div>

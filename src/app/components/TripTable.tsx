@@ -175,11 +175,49 @@ const Cell: React.FC<CellProps> = ({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+type TooltipField = "program" | "registration" | "personnel" | "guide";
+
 const TripTable: React.FC<TripTableProps> = ({ trips, totals, onTripClick }) => {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [hoveredAlertId, setHoveredAlertId] = useState<number | null>(null);
+  const [hoveredTooltip, setHoveredTooltip] = useState<{ tripId: number; field: TooltipField } | null>(null);
   const dropdownRefsMap = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const tooltipStyle: React.CSSProperties = {
+    position: "absolute",
+    bottom: "100%",
+    left: 0,
+    marginBottom: 4,
+    maxWidth: 320,
+    background: "#FFFFFF",
+    borderRadius: 8,
+    boxShadow: "0 0 4px rgba(0,0,0,0.16)",
+    pointerEvents: "none",
+    zIndex: 200,
+  };
+  const tooltipInnerStyle: React.CSSProperties = {
+    padding: "8px 16px",
+    background: "#DBEAFE",
+    borderRadius: 8,
+  };
+  const tooltipTextStyle: React.CSSProperties = {
+    color: "#78716C",
+    fontSize: 12,
+    fontFamily: FONT,
+    fontWeight: 400,
+    lineHeight: "16px",
+    letterSpacing: "0.02em",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  };
+
+  const handleCellMouseEnter = (tripId: number, field: TooltipField) => (e: React.MouseEvent<HTMLDivElement>) => {
+    const span = e.currentTarget.querySelector("span");
+    if (span && span.scrollWidth > span.clientWidth) {
+      setHoveredTooltip({ tripId, field });
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -307,21 +345,79 @@ const TripTable: React.FC<TripTableProps> = ({ trips, totals, onTripClick }) => 
               </Cell>
 
               <Cell width={266} bg={bg}>
-                <span style={{ ...bodyText(idx === 1 ? "#142B41" : "#2A2A2A"), width: "100%" }}>
-                  {trip.program}
-                </span>
+                <div
+                  style={{ position: "relative", width: "100%", minWidth: 0 }}
+                  onMouseEnter={handleCellMouseEnter(trip.id, "program")}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                >
+                  <span style={{ ...bodyText(idx === 1 ? "#142B41" : "#2A2A2A"), width: "100%", minWidth: 0, display: "block" }}>
+                    {trip.program}
+                  </span>
+                  {hoveredTooltip?.tripId === trip.id && hoveredTooltip?.field === "program" && (
+                    <div style={tooltipStyle}>
+                      <div style={tooltipInnerStyle}>
+                        <span style={tooltipTextStyle}>{trip.program}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </Cell>
 
               <Cell width={206} bg={bg}>
-                <span style={{ ...bodyText(), width: "100%" }}>{trip.registration}</span>
+                <div
+                  style={{ position: "relative", width: "100%", minWidth: 0 }}
+                  onMouseEnter={handleCellMouseEnter(trip.id, "registration")}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                >
+                  <span style={{ ...bodyText(), width: "100%", minWidth: 0, display: "block" }}>
+                    {trip.registration}
+                  </span>
+                  {hoveredTooltip?.tripId === trip.id && hoveredTooltip?.field === "registration" && (
+                    <div style={tooltipStyle}>
+                      <div style={tooltipInnerStyle}>
+                        <span style={tooltipTextStyle}>{trip.registration}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </Cell>
 
               <Cell width={206} bg={bg}>
-                <span style={{ ...bodyText(), width: "100%" }}>{trip.personnel}</span>
+                <div
+                  style={{ position: "relative", width: "100%", minWidth: 0 }}
+                  onMouseEnter={handleCellMouseEnter(trip.id, "personnel")}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                >
+                  <span style={{ ...bodyText(), width: "100%", minWidth: 0, display: "block" }}>
+                    {trip.personnel}
+                  </span>
+                  {hoveredTooltip?.tripId === trip.id && hoveredTooltip?.field === "personnel" && (
+                    <div style={tooltipStyle}>
+                      <div style={tooltipInnerStyle}>
+                        <span style={tooltipTextStyle}>{trip.personnel}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </Cell>
 
               <Cell width={206} bg={bg}>
-                <span style={{ ...bodyText(), width: "100%" }}>{trip.guide}</span>
+                <div
+                  style={{ position: "relative", width: "100%", minWidth: 0 }}
+                  onMouseEnter={handleCellMouseEnter(trip.id, "guide")}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                >
+                  <span style={{ ...bodyText(), width: "100%", minWidth: 0, display: "block" }}>
+                    {trip.guide}
+                  </span>
+                  {hoveredTooltip?.tripId === trip.id && hoveredTooltip?.field === "guide" && (
+                    <div style={tooltipStyle}>
+                      <div style={tooltipInnerStyle}>
+                        <span style={tooltipTextStyle}>{trip.guide}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </Cell>
             </div>
           );

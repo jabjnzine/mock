@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import { Input, Button } from "@heroui/react";
 import {
@@ -33,6 +33,7 @@ import LoadingModal from "../../../../components/LoadingModal";
 import SuccessModal from "../../../../components/SuccessModal";
 import NoShowModal from "../../../../components/NoShowModal";
 import CheckInModal from "../../../../components/CheckInModal";
+import { getTripDetail, type TripPerson } from "@/app/lib/check-in-trip";
 
 // ─── Summary Card Icons (ตรงกับ Check In List — SVG จาก Figma) ─────────────────
 const IconWaiting = () => (
@@ -100,7 +101,7 @@ export default function CheckInViewPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showNoShowModal, setShowNoShowModal] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(true);
   const [fabHover, setFabHover] = useState(false);
   const [noShowModalFromAddCondition, setNoShowModalFromAddCondition] = useState(false);
   const [warningVariant, setWarningVariant] = useState<"checkIn" | "fullCharge" | "reschedule" | "refund">("checkIn");
@@ -142,93 +143,115 @@ export default function CheckInViewPage() {
   };
   const clearSelection = () => setSelectedBookingIds(new Set());
 
-  // Mock data (tripCode จาก URL เพื่อให้กด View จาก List แสดงทริปที่เลือก)
-  const tripData = {
-    tripCode: tripCode ?? "EC25Z1PW",
-    travelDate: "17/12/2025",
-    tripRound: "07:30",
-    tripType: "Join In",
-    program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-    remark: "",
-    status: "Pending",
-    totalPax: 30,
-    checkedInPax: 9,
-  };
-
-  const bookings: Booking[] = [
-    {
-      id: "1",
-      bookingNo: "TSB-01251012",
-      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-      option: "Day Trip with Shared Transfer including National Park Fee",
-      customerName: "Yerik Trevor Tavarez",
-      phone: "065-9016894",
-      pax: 5,
-      checkIn: 0,
-      noShow: 0,
-      language: "EN",
-      status: "waiting",
-      remark: "-",
-    },
-    {
-      id: "1b",
-      bookingNo: "TSB-03250124",
+  // ข้อมูลทริปตรงกับ Check-in List (Program, Pax, ฯลฯ) ต่อ tripCode
+  const code = tripCode ?? "EC25Z1PW";
+  const TRIP_DATA_FROM_LIST: Record<
+    string,
+    { travelDate: string; tripRound: string; program: string; totalPax: number; checkedInPax: number; status: string; remark: string }
+  > = {
+    EC25Z1PW: {
+      travelDate: "17/12/2025",
+      tripRound: "07:30",
       program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-      option: "Day Trip with Shared Transfer including National Park Fee",
-      customerName: "Leanne Tague",
-      phone: "+447708157027",
-      pax: 5,
-      checkIn: 0,
-      noShow: 0,
-      language: "EN",
-      status: "waiting",
-      remark: "-",
+      totalPax: 20,
+      checkedInPax: 7,
+      status: "Pending",
+      remark: "",
     },
-    {
-      id: "2",
-      bookingNo: "TSB-01251013",
-      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-      option: "Day Trip with Shared Transfer including National Park Fee",
-      customerName: "John Doe",
-      phone: "065-9016895",
-      pax: 5,
-      checkIn: 3,
-      noShow: 2,
-      language: "EN",
-      status: "waitingReason",
-      remark: "-",
+    EC2581C4: {
+      travelDate: "17/12/2025",
+      tripRound: "07:30",
+      program: "Damnoen + Buffalo Cafe + Maeklong",
+      totalPax: 39,
+      checkedInPax: 38,
+      status: "Pending",
+      remark: "",
     },
-    {
-      id: "3",
-      bookingNo: "TSB-01251014",
-      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-      option: "Day Trip with Shared Transfer including National Park Fee",
-      customerName: "Jane Smith",
-      phone: "065-9016896",
-      pax: 5,
-      checkIn: 5,
-      noShow: 0,
-      language: "EN",
-      status: "checkedIn",
-      checkedInTime: "06:30",
-      remark: "-",
+    EC255D2C: {
+      travelDate: "17/12/2025",
+      tripRound: "00:00",
+      program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
+      totalPax: 20,
+      checkedInPax: 10,
+      status: "Pending",
+      remark: "",
     },
-    {
-      id: "4",
-      bookingNo: "TSB-01251512",
-      program: "Phuket: Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-      option: "Day Trip with Shared Transfer including National Park Fee",
-      customerName: "Joyce De Vos",
-      phone: "+32472602889",
-      pax: 2,
-      checkIn: 0,
-      noShow: 2,
-      language: "EN",
-      status: "noShow",
-      remark: "-",
-      noShowCondition: "No-show Full Charge",
+    EC25ABC1: {
+      travelDate: "16/12/2025",
+      tripRound: "08:00",
+      program: "Completed Trip Example",
+      totalPax: 20,
+      checkedInPax: 20,
+      status: "Completed",
+      remark: "",
     },
-  ];
+  };
+  const tripDataFromList = TRIP_DATA_FROM_LIST[code];
+  const tripData = tripDataFromList
+    ? {
+        tripCode: code,
+        travelDate: tripDataFromList.travelDate,
+        tripRound: tripDataFromList.tripRound,
+        tripType: "Join In",
+        program: tripDataFromList.program,
+        remark: tripDataFromList.remark,
+        status: tripDataFromList.status,
+        totalPax: tripDataFromList.totalPax,
+        checkedInPax: tripDataFromList.checkedInPax,
+      }
+    : {
+        tripCode: code,
+        travelDate: "17/12/2025",
+        tripRound: "07:30",
+        tripType: "Join In",
+        program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+        remark: "",
+        status: "Pending",
+        totalPax: 20,
+        checkedInPax: 8,
+      };
+
+  // Vehicle/Personnel/Guide จาก lib — Relate กับตาราง List (Vehicle : Registration, Name, Tel)
+  const tripDetail = getTripDetail(code, isTransportFlow);
+  // ตัวเลขในวงเล็บของ Vehicle = capacity (เช่น Speed Catamaran 2 engines (30) → 30)
+  const vehicleCapacityMatch = tripDetail.vehicleName.match(/\((\d+)\)/);
+  const vehicleCapacity = vehicleCapacityMatch ? parseInt(vehicleCapacityMatch[1], 10) : undefined;
+
+  // Booking No. Pattern: TSB + MM(12) + YY(25) + HHMM (ปี 25 เดือน 12), Pax ไม่เกิน 8
+  const bookingNo = (hhmm: string) => `TSB1225${hhmm}`;
+
+  // Bookings ต่อ tripCode ให้ผลรวม Pax ตรงกับ List; แต่ละ booking pax ≤ 8
+  const programByCode = (c: string) => TRIP_DATA_FROM_LIST[c]?.program ?? "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch";
+  const bookingsByCode: Record<string, Booking[]> = {
+    EC25Z1PW: [
+      { id: "1", bookingNo: bookingNo("0730"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Yerik Trevor Tavarez", phone: "065-9016894", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0745"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Leanne Tague", phone: "+447708157027", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "3", bookingNo: bookingNo("0800"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "John Doe", phone: "065-9016895", pax: 1, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "4", bookingNo: bookingNo("0815"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Jane Smith", phone: "065-9016896", pax: 8, checkIn: 7, noShow: 1, language: "EN", status: "waitingReason", remark: "-" },
+      { id: "5", bookingNo: bookingNo("0830"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Joyce De Vos", phone: "+32472602889", pax: 7, checkIn: 0, noShow: 7, language: "EN", status: "noShow", remark: "-", noShowCondition: "No-show Full Charge" },
+    ],
+    EC2581C4: [
+      { id: "1", bookingNo: bookingNo("0710"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group A1", phone: "081-1111111", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:15", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0725"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group A2", phone: "081-1111112", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:15", remark: "-" },
+      { id: "3", bookingNo: bookingNo("0740"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group A3", phone: "081-1111113", pax: 4, checkIn: 4, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:15", remark: "-" },
+      { id: "4", bookingNo: bookingNo("0755"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B1", phone: "082-2222222", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
+      { id: "5", bookingNo: bookingNo("0810"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B2", phone: "082-2222223", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
+      { id: "6", bookingNo: bookingNo("0825"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B3", phone: "082-2222224", pax: 2, checkIn: 2, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
+      { id: "7", bookingNo: bookingNo("0840"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Single Guest", phone: "083-3333333", pax: 1, checkIn: 0, noShow: 1, language: "EN", status: "waitingReason", remark: "-" },
+    ],
+    EC255D2C: [
+      { id: "1", bookingNo: bookingNo("0805"), program: programByCode("EC255D2C"), option: "Full Day Tour", customerName: "Party A1", phone: "084-4444444", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0820"), program: programByCode("EC255D2C"), option: "Full Day Tour", customerName: "Party A2", phone: "084-4444445", pax: 2, checkIn: 2, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+      { id: "3", bookingNo: bookingNo("0835"), program: programByCode("EC255D2C"), option: "Full Day Tour", customerName: "Party B1", phone: "085-5555555", pax: 8, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "4", bookingNo: bookingNo("0850"), program: programByCode("EC255D2C"), option: "Full Day Tour", customerName: "Party B2", phone: "085-5555556", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+    ],
+    EC25ABC1: [
+      { id: "1", bookingNo: bookingNo("0750"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed A", phone: "086-6666666", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0810"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed B", phone: "086-6666667", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+      { id: "3", bookingNo: bookingNo("0830"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed C", phone: "086-6666668", pax: 4, checkIn: 4, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+    ],
+  };
+  const bookings: Booking[] = bookingsByCode[code] ?? bookingsByCode.EC25Z1PW;
 
   const [bookingStates, setBookingStates] = useState(
     bookings.map((b) => ({
@@ -237,6 +260,13 @@ export default function CheckInViewPage() {
       noShow: b.noShow,
     }))
   );
+
+  // เมื่อเปลี่ยน tripCode (เช่น จาก List กด View อีกทริป) ให้โหลด bookings ใหม่
+  useEffect(() => {
+    setBookingStates(
+      bookings.map((b) => ({ ...b, checkIn: b.checkIn, noShow: b.noShow }))
+    );
+  }, [code]);
 
   const filteredBookings = bookingStates.filter((booking) => {
     // กรอง rescheduled bookings ออก (ไม่แสดงในรายการ Check In)
@@ -268,6 +298,10 @@ export default function CheckInViewPage() {
   const summaryNoShow = activeBookings.reduce((sum, b) => sum + b.noShow, 0);
   const summaryAmountPax = activeBookings.reduce((sum, b) => sum + b.pax, 0);
   const summaryCheckedInPax = summaryCheckedIn;
+
+  // สถานะทริป: ถ้าไม่มี Waiting / Waiting Reason (เหลือแค่ Completed กับ No Show) → Completed
+  const hasWaitingOrReason = activeBookings.some((b) => b.status === "waiting" || b.status === "waitingReason");
+  const tripStatusDisplay = hasWaitingOrReason ? "Pending" : "Completed";
 
   const handleCheckInChange = (bookingId: string, value: number) => {
     setBookingStates((prev) =>
@@ -334,9 +368,7 @@ export default function CheckInViewPage() {
                 noShow: noShowPax,
                 checkIn,
                 status: newStatus,
-                // Full Charge case: เก็บข้อความ Condition ไว้แสดงใต้การ์ด
-                noShowCondition:
-                  newStatus === "noShow" ? "No-show Full Charge" : b.noShowCondition,
+                noShowCondition: "No-show Full Charge",
                 ...(newStatus === "checkedIn"
                   ? {
                       checkedInTime: new Date()
@@ -417,7 +449,7 @@ export default function CheckInViewPage() {
                   noShow: n,
                   checkIn,
                   status: newStatus,
-                  noShowCondition: newStatus === "noShow" ? "Refund" : b.noShowCondition,
+                  noShowCondition: "Refund",
                 }
               : b
           )
@@ -618,13 +650,26 @@ export default function CheckInViewPage() {
                   </div>
                 </div>
                 <div className="flex justify-center items-center gap-3 shrink-0">
-                  <div data-property-1="Pending" className="px-2 py-0.5 bg-[#FFEFE6] rounded-2xl flex justify-center items-center gap-1">
-                    <div className="size-2.5 bg-[#FD5C04] rounded-full" />
-                    <span className="text-[#FD5C04] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-center">{tripData.status}</span>
+                  <div
+                    data-property-1={tripStatusDisplay}
+                    className={`px-2 py-0.5 rounded-2xl flex justify-center items-center gap-1 ${
+                      tripStatusDisplay === "Completed" ? "bg-[#E6F7F0]" : "bg-[#FFEFE6]"
+                    }`}
+                  >
+                    <div
+                      className="size-2.5 rounded-full"
+                      style={{ background: tripStatusDisplay === "Completed" ? "#1CB579" : "#FD5C04" }}
+                    />
+                    <span
+                      className="text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-center"
+                      style={{ color: tripStatusDisplay === "Completed" ? "#1CB579" : "#FD5C04" }}
+                    >
+                      {tripStatusDisplay}
+                    </span>
                   </div>
                   <div data-property-1="Default" className="px-2 py-1 bg-[#F8F8F8] rounded-[30px] inline-flex items-center gap-1">
                     <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
-                    <span className="text-[#142B41] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-right">{summaryCheckedInPax}/{summaryAmountPax}</span>
+                    <span className="text-[#142B41] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-right" title="จำนวน Pax ที่จัดกรุ๊ปเข้ามา / ความจุ Vehicle (ตัวเลขในวงเล็บ)">{summaryAmountPax}/{vehicleCapacity ?? summaryAmountPax}</span>
                   </div>
                 </div>
               </div>
@@ -693,7 +738,7 @@ export default function CheckInViewPage() {
                     <div className="flex-1 flex justify-start items-center gap-[18px]">
                       <span className="text-[#006AFF] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Language :</span>
                       <div className="flex justify-start items-center gap-2">
-                        <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">EN {filteredBookings.length}</span>
+                        <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">EN {filteredBookings.reduce((sum, b) => sum + b.pax, 0)}</span>
                       </div>
                     </div>
                     <div data-property-1="Search no filter" className="w-[250px] h-10 relative bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#D9D9D9] flex items-center pl-3">
@@ -1270,11 +1315,11 @@ export default function CheckInViewPage() {
               <div className="flex flex-col items-start gap-2 w-full">
                 <div className="flex items-start gap-2 w-full">
                   <span className="text-white text-sm font-medium w-24 shrink-0">Vehicle</span>
-                  <span className="text-white text-sm font-normal">Speed Catamaran 2 engines</span>
+                  <span className="text-white text-sm font-normal">{tripDetail.vehicleName}</span>
                 </div>
                 <div className="flex items-start gap-2 w-full">
                   <span className="text-white text-sm font-medium w-24 shrink-0">Registration</span>
-                  <span className="text-white text-sm font-normal">โลมาใจดี</span>
+                  <span className="text-white text-sm font-normal">{tripDetail.registration}</span>
                 </div>
               </div>
             </div>
@@ -1291,19 +1336,19 @@ export default function CheckInViewPage() {
                 </span>
               </div>
               <div className="flex flex-col gap-3 w-full">
-                {[1, 2].map((_, i) => (
+                {tripDetail.personnel.map((p: TripPerson, i: number) => (
                   <div key={`personnel-${i}`} className="flex flex-col gap-1.5 w-full">
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Position</span>
-                      <span className="text-white text-sm font-normal">Captain</span>
+                      <span className="text-white text-sm font-normal">{p.position}</span>
                     </div>
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Name</span>
-                      <span className="text-white text-sm font-normal">Capt. Trunk</span>
+                      <span className="text-white text-sm font-normal">{p.name}</span>
                     </div>
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Phone Number</span>
-                      <a href="tel:096-6502747" className="text-white text-sm font-normal hover:underline">096-6502747</a>
+                      <a href={`tel:${p.phone.replace(/-/g, "")}`} className="text-white text-sm font-normal hover:underline">{p.phone}</a>
                     </div>
                   </div>
                 ))}
@@ -1322,19 +1367,19 @@ export default function CheckInViewPage() {
                 </span>
               </div>
               <div className="flex flex-col gap-3 w-full">
-                {[1, 2].map((_, i) => (
+                {tripDetail.guides.map((g: TripPerson, i: number) => (
                   <div key={`guide-${i}`} className="flex flex-col gap-1.5 w-full">
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Position</span>
-                      <span className="text-white text-sm font-normal">Guide</span>
+                      <span className="text-white text-sm font-normal">{g.position}</span>
                     </div>
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Name</span>
-                      <span className="text-white text-sm font-normal">G. Peter</span>
+                      <span className="text-white text-sm font-normal">{g.name}</span>
                     </div>
                     <div className="flex items-start gap-2 w-full">
                       <span className="text-white text-sm font-medium w-24 shrink-0">Phone Number</span>
-                      <a href="tel:094-4313995" className="text-white text-sm font-normal hover:underline">094-4313995</a>
+                      <a href={`tel:${g.phone.replace(/-/g, "")}`} className="text-white text-sm font-normal hover:underline">{g.phone}</a>
                     </div>
                   </div>
                 ))}
