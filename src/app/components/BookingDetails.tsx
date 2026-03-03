@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@heroui/react";
 import {
   CheckCircleIcon,
@@ -18,6 +18,7 @@ import {
   MapPinIcon,
   ClipboardDocumentIcon,
   Cog6ToothIcon,
+  TruckIcon,
 } from "@heroicons/react/24/outline";
 import NoShowModal from "./NoShowModal";
 import WarningModal from "./WarningModal";
@@ -41,6 +42,8 @@ interface BookingData {
   tripType: string;
   language: string;
   tripCode: string;
+  transportCodePickUp: string;
+  transportCodeDropOff: string;
   vehicleDetail: string;
   vehiclePlate: string;
   captain: { name: string; phone: string };
@@ -75,6 +78,32 @@ interface BookingData {
   bookingQuantity: number;
 }
 
+/** แสดง tooltip เฉพาะเมื่อข้อความยาวเกินขอบ (overflow) */
+function CellWithTooltip({ children, className = "" }: { children: string; className?: string }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const handleMouseEnter = () => {
+    if (spanRef.current && spanRef.current.scrollWidth > spanRef.current.clientWidth) {
+      setShowTooltip(true);
+    }
+  };
+  const handleMouseLeave = () => setShowTooltip(false);
+  return (
+    <div className={`relative w-full min-w-0 ${className}`} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <span ref={spanRef} className="block w-full min-w-0 truncate">
+        {children}
+      </span>
+      {showTooltip && (
+        <div className="absolute bottom-full left-0 mb-1 max-w-[320px] rounded-lg bg-[#DBEAFE] px-4 py-2 shadow z-[200] pointer-events-none">
+          <span className="text-[#78716C] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-4 whitespace-pre-wrap break-words block">
+            {children}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BookingDetails({
   bookingId,
   onCancel,
@@ -83,7 +112,6 @@ export default function BookingDetails({
   const [expandedSections, setExpandedSections] = useState({
     bookingDetails: true,
     tripDetails: true,
-    transportDetails: true,
     customerDetails: true,
     unitDetails: true,
     locationDetails: true,
@@ -93,25 +121,27 @@ export default function BookingDetails({
     bookingNo: "TQC417792",
     title: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
     seller: "Klook",
-    travelDate: "27/01/2026",
+    travelDate: "17/12/2025",
     payment: "Pending",
     option: "Day Trip with Shared Transfer excluding Natio...",
     tripRound: "07:30",
     tripType: "Join In",
     language: "EN",
-    tripCode: "EC25A956",
+    tripCode: "TF25A956",
+    transportCodePickUp: "TF25A956",
+    transportCodeDropOff: "TF25A957",
     vehicleDetail: "Speed Catamaran 2 engines: 30",
-    vehiclePlate: "โลมาใจดี กข1234",
+    vehiclePlate: "ฮต4321",
     captain: { name: "Capt. Trunk", phone: "096-6502747" },
     assistant: { name: "Jane Cooper", phone: "0684 555-0102" },
     guide1: { name: "G. Peter", phone: "094-4313995" },
     guide2: { name: "G. ter", phone: "095-4313995" },
-    pickUpVehicle: "Dash MV - BUS: 30",
-    pickUpDriver: { name: "Rick Wright", phone: "096-6502747" },
+    pickUpVehicle: "VAN-Phuket - VAN (10)",
+    pickUpDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
     pickUpGuide1: { name: "G. Peter", phone: "094-4313995" },
     pickUpGuide2: { name: "G. ter", phone: "095-4313995" },
-    dropOffVehicle: "Dash MV - BUS: 30",
-    dropOffDriver: { name: "Rick Wright", phone: "096-6502747" },
+    dropOffVehicle: "VAN-Phuket - VAN (10)",
+    dropOffDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
     dropOffGuide1: { name: "G. Peter", phone: "094-4313995" },
     dropOffGuide2: { name: "G. ter", phone: "095-4313995" },
     customerName: "Zakenya Crawford",
@@ -125,7 +155,7 @@ export default function BookingDetails({
     ],
     meetingPoint: "-",
     pickUpLocation:
-      "Hilltop Wellness Resort Phuket, 138 Soi Si Suchat View, Ratsada, Mueang Phuket District, Phuket 8...",
+      "Hilltop Wellness Resort Phuket, 138 Soi Si Suchat View, Ratsada, Mueang Phuket District, Phuket 83000, Thailand",
     pickUpAddress: "-",
     dropOffPoint: "-",
     dropOffRemark: "-",
@@ -174,41 +204,14 @@ export default function BookingDetails({
   const totalKB = bookingData.units.reduce((sum, unit) => sum + unit.kb, 0);
 
   return (
-    <div className="space-y-5 bg-white">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="light"
-            onClick={onCancel}
-            className="text-gray-700 hover:text-gray-900"
-            startContent={<XMarkIcon className="w-5 h-5" />}
-          >
-            Cancel
-          </Button>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Trip Type:</span>
-            <select className="px-3 py-1.5 border border-gray-300 rounded-md bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option>Join In</option>
-            </select>
-            <Button
-              size="sm"
-              variant="light"
-              className="text-gray-700 hover:text-gray-900"
-            >
-              Switch
-            </Button>
-          </div>
-        </div>
+    <div className="self-stretch p-6 bg-white rounded-2xl border border-[#f8f8f8] flex flex-col justify-start items-start gap-4 overflow-hidden">
+      {/* Action bar */}
+      <div className="self-stretch flex items-center justify-end">
         <Button
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium shadow-sm"
           onClick={() => {
-            if (noShowPax > 0) {
-              setShowNoShowModal(true);
-            } else {
-              // จำนวนคนครบ - แสดง Warning Modal
-              setShowWarningModal(true);
-            }
+            if (noShowPax > 0) setShowNoShowModal(true);
+            else setShowWarningModal(true);
           }}
           startContent={<CheckCircleIcon className="w-5 h-5" />}
         >
@@ -216,435 +219,298 @@ export default function BookingDetails({
         </Button>
       </div>
 
-      {/* Booking Title */}
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-        <h2 className="text-lg font-semibold text-gray-900">
-          {bookingData.title}
-        </h2>
+      {/* Header: รูป + ชื่อโปรแกรม + Trip Type (ตาม reference) */}
+      <div className="self-stretch flex justify-start items-center gap-2.5">
+        <div className="flex-1 flex justify-start items-center gap-4">
+          <img className="w-[52px] h-[52px] rounded-lg object-cover bg-gray-200" src="https://placehold.co/52x52" alt="" />
+          <div className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 min-w-0 flex-1">
+            <CellWithTooltip>{bookingData.title}</CellWithTooltip>
+          </div>
+        </div>
+        <div className="flex justify-start items-center gap-2.5">
+          <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip Type :</span>
+          <span className="px-2 py-1 bg-[#f8fcff] rounded-[30px] border border-[#265ed6] text-[#265ed6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
+            {bookingData.tripType}
+          </span>
+        </div>
       </div>
 
-      {/* Check-in Control */}
-      <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-            <CheckCircleIcon className="w-3 h-3 text-white" />
+      {/* Check-in Control — ตาม reference */}
+      <div className="w-full max-w-[1568px] p-6 bg-[#f8f8f8] rounded-2xl flex flex-col justify-start items-center gap-4">
+        <div className="self-stretch inline-flex justify-start items-center gap-2">
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center gap-2.5">
+            <ClipboardDocumentIcon className="w-4 h-4 text-[#145be1]" strokeWidth={1.5} />
           </div>
-          <h3 className="text-base font-semibold text-gray-900">
+          <div className="flex-1 justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
             Check-in Control
-          </h3>
+          </div>
         </div>
-
-        <div className="flex items-center justify-center gap-6">
-          <div className="text-center">
-            <div className="text-sm text-gray-900 mb-2 font-medium">
+        <div className="self-stretch inline-flex justify-center items-start gap-8">
+          <div className="w-[147px] inline-flex flex-col justify-start items-start gap-2">
+            <div className="self-stretch text-center justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
               Booking Quantity
             </div>
-            <div className="text-5xl font-bold text-blue-600">
+            <div className="self-stretch text-center justify-start text-[#265ed6] text-[32px] font-semibold font-['IBM_Plex_Sans_Thai'] leading-[44px]">
               {bookingData.bookingQuantity}
             </div>
-            <div className="text-sm text-gray-500 mt-1">Pax</div>
-          </div>
-
-          <ArrowRightIcon className="w-6 h-6 text-gray-400 mt-8" />
-
-          <div className="text-center">
-            <div className="text-sm text-gray-900 mb-2 font-medium">
-              Check in
+            <div className="self-stretch text-center justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+              Pax
             </div>
-            <div className="flex items-center justify-center gap-2">
+          </div>
+          <div className="self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+            <ArrowRightIcon className="w-6 h-6 text-[#b9b9b9]" strokeWidth={1.5} />
+          </div>
+          <div className="inline-flex flex-col justify-start items-start gap-2">
+            <div className="self-stretch h-7 flex items-center justify-center">
+              <span className="text-center text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                Check in
+              </span>
+            </div>
+            <div className="self-stretch h-11 inline-flex justify-start items-center gap-3">
               <button
+                type="button"
                 onClick={handleDecrease}
-                disabled={checkInPax <= 1}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  checkInPax <= 1
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                disabled={checkInPax <= 0}
+                className={`p-1 rounded-full flex justify-center items-center gap-2 ${
+                  checkInPax <= 0
+                    ? "bg-[#f5f5f5] cursor-not-allowed"
+                    : "border border-[#265ed6] hover:bg-blue-50/50"
                 }`}
               >
-                <MinusIcon className="w-5 h-5" />
+                <MinusIcon className="w-6 h-6 text-[#265ed6]" strokeWidth={1.5} />
               </button>
-              <div className="bg-white border border-gray-300 rounded-md px-4 py-2 min-w-[60px] text-center">
-                <div className="text-4xl font-bold text-gray-900">
+              <div className="w-[100px] h-11 px-3 py-1 bg-white rounded-lg border border-[#d9d9d9] inline-flex items-center justify-center">
+                <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
                   {checkInPax}
-                </div>
+                </span>
               </div>
               <button
+                type="button"
                 onClick={handleIncrease}
                 disabled={checkInPax >= bookingData.bookingQuantity}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                className={`p-1 rounded-full flex justify-center items-center gap-2 ${
                   checkInPax >= bookingData.bookingQuantity
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                    ? "bg-[#f5f5f5] cursor-not-allowed"
+                    : "border border-[#265ed6] hover:bg-blue-50/50"
                 }`}
               >
-                <PlusIcon className="w-5 h-5" />
+                <PlusIcon
+                  className={`w-6 h-6 ${checkInPax >= bookingData.bookingQuantity ? "text-[#b9b9b9]" : "text-[#265ed6]"}`}
+                  strokeWidth={1.5}
+                />
               </button>
             </div>
-            <div className="text-sm text-gray-500 mt-1">Pax</div>
           </div>
-
-          <div className="text-3xl text-gray-400 mt-8">=</div>
-
-          <div className="text-center">
-            <div className="text-sm text-gray-900 mb-2 font-medium">
+          <div className="w-[14.69px] self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+            <span className="self-stretch justify-start text-[#b9b9b9] text-2xl font-normal font-['Inter'] leading-8 tracking-tight">
+              =
+            </span>
+          </div>
+          <div className="w-[147px] inline-flex flex-col justify-start items-start gap-2">
+            <div className="self-stretch text-center justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
               No show
             </div>
-            <div className="text-5xl font-bold text-red-600">
+            <div className="self-stretch text-center justify-start text-[#d91616] text-[32px] font-semibold font-['IBM_Plex_Sans_Thai'] leading-[44px]">
               {noShowPax}
             </div>
-            <div className="text-sm text-gray-500 mt-1">Pax</div>
+            <div className="self-stretch text-center justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+              Pax
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Booking Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      {/* Booking Details — ตาม reference */}
+      <div className="w-full max-w-[1568px] p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
         <button
           onClick={() => toggleSection("bookingDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <DocumentTextIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900">
-              Booking Details
-            </h3>
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+            <DocumentTextIcon className="w-4 h-4 text-[#145be1]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Booking Details
           </div>
           {expandedSections.bookingDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           )}
         </button>
         {expandedSections.bookingDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Seller</label>
-                <input
-                  type="text"
-                  value={bookingData.seller}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+          <>
+            <div className="self-stretch inline-flex justify-start items-end gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Seller</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.seller}</CellWithTooltip>
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Booking No.
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.bookingNo}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Booking No.</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.bookingNo}</CellWithTooltip>
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3" />
-                  Travel Date
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.travelDate}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Travel Date</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg inline-flex items-center gap-2 min-w-0 text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">
+                  <CalendarIcon className="w-6 h-6 text-[#292d32] shrink-0" strokeWidth={1.5} />
+                  <CellWithTooltip>{bookingData.travelDate}</CellWithTooltip>
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Payment</label>
-                <input
-                  type="text"
-                  value={bookingData.payment}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Payment</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.payment}</CellWithTooltip>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Option</label>
-              <input
-                type="text"
-                value={bookingData.option}
-                readOnly
-                className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-              />
+            <div className="self-stretch inline-flex justify-start items-end gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Option</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.option}</CellWithTooltip>
+                </div>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Trip round</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg inline-flex items-center gap-2 min-w-0 text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">
+                  <ClockIcon className="w-6 h-6 text-[#292d32] shrink-0" strokeWidth={1.5} />
+                  <CellWithTooltip>{bookingData.tripRound}</CellWithTooltip>
+                </div>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Trip Type</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.tripType}</CellWithTooltip>
+                </div>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Language</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.language}</CellWithTooltip>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <ClockIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-500">Trip round:</span>
-                <span className="text-sm text-gray-900">{bookingData.tripRound}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Trip Type:</span>
-                <span className="text-sm text-gray-900">{bookingData.tripType}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Language:</span>
-                <span className="text-sm text-gray-900">{bookingData.language}</span>
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </div>
 
-      {/* Trip Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <Button
-            size="sm"
-            variant="light"
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Trip Code: {bookingData.tripCode}
-          </Button>
-          <button
-            onClick={() => copyToClipboard(bookingData.tripCode)}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            <ClipboardDocumentIcon className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
+      {/* Transport Details — ตาม reference (Pick-Up / Drop-off) */}
+      <div className="self-stretch p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
         <button
           onClick={() => toggleSection("tripDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <CalendarIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900">
-              Trip Details (Excursion Details)
-            </h3>
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+            <TruckIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Transport Details
           </div>
           {expandedSections.tripDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           )}
         </button>
         {expandedSections.tripDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 space-y-4 pt-4">
-            <div className="border-l-4 border-blue-500 pl-4">
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
-                <span>🚤</span>
-                Vehicle Detail
-              </h4>
-              <p className="text-sm text-gray-700">{bookingData.vehicleDetail}</p>
-              <p className="text-sm text-gray-700">{bookingData.vehiclePlate}</p>
-            </div>
-            <div className="border-l-4 border-blue-500 pl-4">
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
-                <UserGroupIcon className="w-4 h-4" />
-                Personnel Detail
-              </h4>
-              <div className="space-y-1 text-sm">
-                <p className="text-gray-700">
-                  Captain: {bookingData.captain.name}{" "}
-                  <a
-                    href={`tel:${bookingData.captain.phone}`}
-                    className="text-blue-600 underline"
-                  >
-                    {bookingData.captain.phone}
-                  </a>
-                </p>
-                <p className="text-gray-700">
-                  Captain Assistance 1: {bookingData.assistant.name}{" "}
-                  <a
-                    href={`tel:${bookingData.assistant.phone}`}
-                    className="text-blue-600 underline"
-                  >
-                    {bookingData.assistant.phone}
-                  </a>
-                </p>
-              </div>
-            </div>
-            <div className="border-l-4 border-blue-500 pl-4">
-              <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
-                <UserIcon className="w-4 h-4" />
-                Guide Detail
-              </h4>
-              <div className="space-y-1 text-sm">
-                <p className="text-gray-700">
-                  Guide 1: {bookingData.guide1.name}{" "}
-                  <a
-                    href={`tel:${bookingData.guide1.phone}`}
-                    className="text-blue-600 underline"
-                  >
-                    {bookingData.guide1.phone}
-                  </a>
-                </p>
-                <p className="text-gray-700">
-                  Guide 2: {bookingData.guide2.name}{" "}
-                  <a
-                    href={`tel:${bookingData.guide2.phone}`}
-                    className="text-blue-600 underline"
-                  >
-                    {bookingData.guide2.phone}
-                  </a>
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Transport Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        <button
-          onClick={() => toggleSection("transportDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-        >
-          <h3 className="text-base font-semibold text-gray-900">
-            Transport Details
-          </h3>
-          {expandedSections.transportDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
-          )}
-        </button>
-        {expandedSections.transportDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 pt-4">
-            <div className="grid grid-cols-2 gap-6">
-              {/* Pick-Up */}
-              <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <Button
-                    size="sm"
-                    variant="light"
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Transport Code: TF25A956
-                  </Button>
-                  <button
-                    onClick={() => copyToClipboard("TF25A956")}
-                    className="p-1 hover:bg-gray-100 rounded"
-                  >
-                    <ClipboardDocumentIcon className="w-4 h-4 text-gray-500" />
-                  </button>
+          <div className="self-stretch inline-flex justify-start items-start gap-6 flex-wrap">
+            {/* Pick - Up */}
+            <div className="flex-1 min-w-[280px] rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-center items-start overflow-hidden">
+              <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
+                <div className="flex-1 flex justify-start items-center gap-2 min-w-0">
+                  <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center shrink-0">
+                    <MapPinIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+                  </div>
+                  <div className="text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Pick - Up</div>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
-                  <MapPinIcon className="w-4 h-4" />
-                  Pick - Up
-                </h4>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <span>🚤</span> Vehicle Detail:
-                    </span>
-                    <p className="text-gray-700">{bookingData.pickUpVehicle}</p>
-                    <p className="text-gray-700">กข1234</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <UserGroupIcon className="w-4 h-4" /> Personnel Detail:
-                    </span>
-                    <p className="text-gray-700">
-                      Driver: {bookingData.pickUpDriver.name}{" "}
-                      <a
-                        href={`tel:${bookingData.pickUpDriver.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.pickUpDriver.phone}
-                      </a>
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <UserIcon className="w-4 h-4" /> Guide Detail:
-                    </span>
-                    <p className="text-gray-700">
-                      Guide 1: {bookingData.pickUpGuide1.name}{" "}
-                      <a
-                        href={`tel:${bookingData.pickUpGuide1.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.pickUpGuide1.phone}
-                      </a>
-                    </p>
-                    <p className="text-gray-700">
-                      Guide 2: {bookingData.pickUpGuide2.name}{" "}
-                      <a
-                        href={`tel:${bookingData.pickUpGuide2.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.pickUpGuide2.phone}
-                      </a>
-                    </p>
+                <div className="bg-white rounded-lg border border-[#265ed6] inline-flex flex-col justify-start items-start shrink-0">
+                  <div className="px-4 py-2 flex flex-col justify-center items-center gap-4">
+                    <div className="self-stretch inline-flex justify-center items-center gap-2 flex-wrap">
+                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Transport Code :</span>
+                      <span className="text-[#265ed6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6">{bookingData.transportCodePickUp}</span>
+                      <button type="button" onClick={() => copyToClipboard(bookingData.transportCodePickUp)} className="p-0.5" aria-label="คัดลอก">
+                        <ClipboardDocumentIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* Drop-off */}
-              <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <Button
-                    size="sm"
-                    variant="light"
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Transport Code: TF25A956
-                  </Button>
-                  <button
-                    onClick={() => copyToClipboard("TF25A956")}
-                    className="p-1 hover:bg-gray-100 rounded"
-                  >
-                    <ClipboardDocumentIcon className="w-4 h-4 text-gray-500" />
-                  </button>
+              <div className="self-stretch p-6 flex flex-col justify-center items-start gap-6">
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpVehicle}</div>
+                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                  </div>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2 text-sm flex items-center gap-2">
-                  <MapPinIcon className="w-4 h-4" />
-                  Drop - off
-                </h4>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <span>🚤</span> Vehicle Detail:
-                    </span>
-                    <p className="text-gray-700">{bookingData.dropOffVehicle}</p>
-                    <p className="text-gray-700">กข1234</p>
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Personnel Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    <div className="inline-flex justify-start items-center gap-2 flex-wrap">
+                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
+                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.name}</span>
+                      <a href={`tel:${bookingData.pickUpDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.phone}</a>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <UserGroupIcon className="w-4 h-4" /> Personnel Detail:
-                    </span>
-                    <p className="text-gray-700">
-                      Driver: {bookingData.dropOffDriver.name}{" "}
-                      <a
-                        href={`tel:${bookingData.dropOffDriver.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.dropOffDriver.phone}
-                      </a>
-                    </p>
+                </div>
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Guide Detail</div>
+                  <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
+                </div>
+              </div>
+            </div>
+            {/* Drop - off */}
+            <div className="flex-1 min-w-[280px] rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-center items-start overflow-hidden">
+              <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
+                <div className="flex-1 flex justify-start items-center gap-2 min-w-0">
+                  <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center shrink-0">
+                    <MapPinIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
                   </div>
-                  <div>
-                    <span className="text-gray-500 flex items-center gap-1">
-                      <UserIcon className="w-4 h-4" /> Guide Detail:
-                    </span>
-                    <p className="text-gray-700">
-                      Guide 1: {bookingData.dropOffGuide1.name}{" "}
-                      <a
-                        href={`tel:${bookingData.dropOffGuide1.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.dropOffGuide1.phone}
-                      </a>
-                    </p>
-                    <p className="text-gray-700">
-                      Guide 2: {bookingData.dropOffGuide2.name}{" "}
-                      <a
-                        href={`tel:${bookingData.dropOffGuide2.phone}`}
-                        className="text-blue-600 underline"
-                      >
-                        {bookingData.dropOffGuide2.phone}
-                      </a>
-                    </p>
+                  <div className="text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Drop - off</div>
+                </div>
+                <div className="bg-white rounded-lg border border-[#265ed6] inline-flex flex-col justify-start items-start shrink-0">
+                  <div className="px-4 py-2 flex flex-col justify-center items-center gap-4">
+                    <div className="self-stretch inline-flex justify-center items-center gap-2 flex-wrap">
+                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Transport Code :</span>
+                      <span className="text-[#265ed6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6">{bookingData.transportCodeDropOff}</span>
+                      <button type="button" onClick={() => copyToClipboard(bookingData.transportCodeDropOff)} className="p-0.5" aria-label="คัดลอก">
+                        <ClipboardDocumentIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
+                      </button>
+                    </div>
                   </div>
+                </div>
+              </div>
+              <div className="self-stretch p-6 flex flex-col justify-center items-start gap-6">
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffVehicle}</div>
+                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                  </div>
+                </div>
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Personnel Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    <div className="inline-flex justify-start items-center gap-2 flex-wrap">
+                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
+                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.name}</span>
+                      <a href={`tel:${bookingData.dropOffDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.phone}</a>
+                    </div>
+                  </div>
+                </div>
+                <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
+                  <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Guide Detail</div>
+                  <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
                 </div>
               </div>
             </div>
@@ -652,193 +518,178 @@ export default function BookingDetails({
         )}
       </div>
 
-      {/* Customer Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      {/* Customer Details — ตาม reference */}
+      <div className="w-full max-w-[1568px] p-6 bg-white rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-start items-center gap-4">
         <button
           onClick={() => toggleSection("customerDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <UserIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900">
-              Customer Details
-            </h3>
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+            <UserIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Customer Details
           </div>
           {expandedSections.customerDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           )}
         </button>
         {expandedSections.customerDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Customer name
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.customerName}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+          <>
+            <div className="self-stretch inline-flex justify-start items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Customer name</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.customerName}</CellWithTooltip></div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Nationality
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.nationality}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Nationality</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.nationality || "-"}</CellWithTooltip></div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Email</label>
-                <input
-                  type="text"
-                  value={bookingData.email}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Email</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.email}</CellWithTooltip></div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Phone number
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.phone}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Contact method
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.contactMethod}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block"></label>
-                <input
-                  type="text"
-                  value="ABCD"
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Phone number</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.phone}</CellWithTooltip></div>
               </div>
             </div>
-          </div>
+            <div className="self-stretch inline-flex justify-start items-end gap-4 flex-wrap">
+              <div className="w-[343px] max-w-full flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Contact method</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.contactMethod}</CellWithTooltip></div>
+              </div>
+              <div className="w-[343px] max-w-full flex flex-col gap-1">
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>ABCD</CellWithTooltip></div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Unit Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      {/* Unit Details — ตาม reference/รูป */}
+      <div className="self-stretch p-6 bg-white rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-start items-center gap-4">
         <button
           onClick={() => toggleSection("unitDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <UserGroupIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900">Unit Details</h3>
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center gap-2.5">
+            <UserGroupIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Unit Details
           </div>
           {expandedSections.unitDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           )}
         </button>
         {expandedSections.unitDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 pt-4">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2.5 text-gray-500 font-medium">
-                    Unit
-                  </th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">
-                    Price
-                  </th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">
-                    Quantity
-                  </th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">
-                    KB
-                  </th>
-                  <th className="text-right py-2.5 text-gray-500 font-medium">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookingData.units.map((unit, index) => (
-                  <tr
-                    key={index}
-                    className={`border-b border-gray-100 ${
-                      index === 0 ? "bg-gray-50" : ""
-                    }`}
-                  >
-                    <td className="py-2.5 text-gray-900">{unit.type}</td>
-                    <td className="text-right py-2.5 text-gray-900">
-                      {unit.price.toLocaleString()}
-                    </td>
-                    <td className="text-right py-2.5 text-gray-900">
-                      {unit.quantity}
-                    </td>
-                    <td className="text-right py-2.5 text-gray-900">
-                      ฿ {unit.kb.toLocaleString()}
-                    </td>
-                    <td className="text-right py-2.5 text-gray-900">
-                      ฿ {unit.total.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-end items-center gap-2">
-                <span className="text-blue-600 font-medium">Sub total:</span>
-                <span className="text-blue-600 font-medium">
-                  ฿ {subtotal.toLocaleString()}
-                </span>
+          <div className="flex flex-col justify-center items-end gap-2 w-full min-w-0">
+            {/* Header row */}
+            <div className="self-stretch px-6 inline-flex justify-center items-center gap-6">
+              <div className="flex-1 flex justify-center items-center gap-2.5 min-w-0">
+                <div className="flex-1 justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1 text-left">Unit</div>
               </div>
-              <div className="border-t border-dashed border-gray-300 pt-2 flex justify-end items-center gap-2">
-                <Cog6ToothIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-500">Discount:</span>
-                <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  ฿ {discount.toLocaleString()}
-                </span>
+              <div className="flex justify-start items-center gap-20 shrink-0">
+                <div className="w-40 flex justify-center items-center gap-2.5">
+                  <div className="flex-1 text-right justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Price</div>
+                </div>
+                <div className="w-20 justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Quantity</div>
+                <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">KB</div>
+                <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Total</div>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <div className="text-xs text-gray-600 mb-1">Total Pax</div>
-                <div className="text-xl font-bold text-green-700">
-                  {bookingData.bookingQuantity}
+            {/* Unit rows */}
+            {bookingData.units.map((unit, index) => (
+              <div key={index} className="self-stretch px-6 py-2 bg-[#f8f8f8] rounded-lg inline-flex justify-start items-center gap-2.5 min-w-0">
+                <div className="flex-1 flex justify-center items-center gap-2.5 min-w-0">
+                  <div className="flex-1 justify-center text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1 text-left">{unit.type}</div>
+                </div>
+                <div className="flex justify-end items-center gap-20 shrink-0">
+                  <div className="flex justify-start items-center gap-2.5">
+                    <div className="justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{unit.price.toLocaleString()}</div>
+                  </div>
+                  <div className="w-20 flex justify-start items-center gap-2.5">
+                    <div className="w-[100px] flex justify-center items-center gap-2.5">
+                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{unit.quantity}</div>
+                    </div>
+                  </div>
+                  <div className="w-[158px] flex justify-start items-center gap-2.5">
+                    <div className="w-[100px] flex justify-center items-center gap-2.5">
+                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.kb.toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="w-[158px] flex justify-start items-center gap-2.5">
+                    <div className="w-[100px] flex justify-center items-center gap-2.5">
+                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.total.toLocaleString()}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                <div className="text-xs text-gray-600 mb-1">Total KB</div>
-                <div className="text-xl font-bold text-orange-700">
-                  ฿ {totalKB.toLocaleString()}
+            ))}
+            {/* Separator */}
+            <div className="self-stretch h-0 border-t border-[#d0d4d9]" />
+            {/* Sub total */}
+            <div className="self-stretch rounded-lg flex flex-col justify-start items-start">
+              <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
+                <div className="self-stretch inline-flex justify-start items-center gap-2">
+                  <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5">
+                    <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Sub total</div>
+                  </div>
+                  <div className="w-[166px] flex justify-start items-center gap-2.5">
+                    <div className="w-[100px] flex justify-center items-center gap-2.5">
+                      <div className="flex-1 justify-center text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {subtotal.toLocaleString()}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="text-xs text-gray-600 mb-1">Total Price</div>
-                <div className="text-xl font-bold text-blue-700">
-                  ฿ {totalPrice.toLocaleString()}
+            </div>
+            {/* Discount */}
+            <div className="self-stretch bg-[#f8fcff] rounded-lg flex flex-col justify-start items-start">
+              <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
+                <div className="self-stretch inline-flex justify-start items-center gap-2">
+                  <div className="w-8 h-8 p-1 bg-[#dceeff] rounded-full flex justify-center items-center gap-2.5 shrink-0">
+                    <Cog6ToothIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
+                  </div>
+                  <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5 min-w-0">
+                    <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Discount</div>
+                  </div>
+                  <div className="w-[166px] flex justify-start items-center gap-2.5 shrink-0">
+                    <div className="w-[166px] py-2 bg-[#f8f8f8] rounded-lg flex justify-center items-center gap-2">
+                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">฿ {discount.toLocaleString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Summary boxes */}
+            <div className="self-stretch inline-flex justify-end items-center gap-4 flex-wrap">
+              <div className="w-40 bg-[#f5fff5] rounded-2xl border border-[#1cb579] inline-flex flex-col justify-start items-start">
+                <div className="self-stretch py-[11px] flex flex-col justify-center items-center gap-4">
+                  <div className="self-stretch flex flex-col justify-center items-center">
+                    <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total Pax</div>
+                    <div className="justify-start text-[#1cb579] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{bookingData.bookingQuantity}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="w-40 bg-[#fffbf4] rounded-2xl border border-[#fe7931] inline-flex flex-col justify-start items-start">
+                <div className="self-stretch py-[11px] flex flex-col justify-center items-center gap-4">
+                  <div className="self-stretch flex flex-col justify-center items-center">
+                    <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total KB</div>
+                    <div className="justify-start text-[#fd5c04] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalKB.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="w-[182px] bg-[#f8fcff] rounded-2xl border border-[#265ed6] inline-flex flex-col justify-start items-start">
+                <div className="px-14 py-[11px] flex flex-col justify-center items-center gap-4">
+                  <div className="self-stretch flex flex-col justify-center items-center">
+                    <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total Price</div>
+                    <div className="justify-start text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalPrice.toLocaleString()}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -846,99 +697,75 @@ export default function BookingDetails({
         )}
       </div>
 
-      {/* Location Details */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      {/* Location Details — ตาม reference */}
+      <div className="w-full max-w-[1568px] p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
         <button
           onClick={() => toggleSection("locationDetails")}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <MapPinIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-900">
-              Location Details
-            </h3>
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+            <MapPinIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Location Details
           </div>
           {expandedSections.locationDetails ? (
-            <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
           )}
         </button>
         {expandedSections.locationDetails && (
-          <div className="px-4 pb-4 border-t border-gray-200 space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Meeting point location
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.meetingPoint}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+          <>
+            <div className="self-stretch inline-flex justify-start items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Meeting point location</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.meetingPoint || "-"}</CellWithTooltip></div>
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Pick up location
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.pickUpLocation}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Pick up location</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+                  <CellWithTooltip>{bookingData.pickUpLocation || "-"}</CellWithTooltip>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">
-                Pick-up Address
-              </label>
-              <input
-                type="text"
-                value={bookingData.pickUpAddress}
-                readOnly
-                className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Drop - off point
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.dropOffPoint}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">
-                  Drop off remark
-                </label>
-                <input
-                  type="text"
-                  value={bookingData.dropOffRemark}
-                  readOnly
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm text-gray-900 cursor-not-allowed"
-                />
+            <div className="self-stretch inline-flex justify-start items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Pick-up Address</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.pickUpAddress || "-"}</CellWithTooltip></div>
               </div>
             </div>
-          </div>
+            <div className="self-stretch inline-flex justify-start items-start gap-4 flex-wrap">
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Drop - off point</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.dropOffPoint || "-"}</CellWithTooltip></div>
+              </div>
+              <div className="flex-1 min-w-[140px] flex flex-col gap-1">
+                <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Drop - off remark</div>
+                <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0"><CellWithTooltip>{bookingData.dropOffRemark || "-"}</CellWithTooltip></div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Remark */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
-        <h3 className="text-base font-semibold text-gray-900 mb-3">Remark</h3>
-        <textarea
-          className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={4}
-          placeholder="Enter remark..."
-        />
+      {/* Remark — ตาม reference */}
+      <div className="w-full max-w-[1568px] p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
+        <div className="self-stretch inline-flex justify-start items-center gap-2">
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+            <ClipboardDocumentIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
+          </div>
+          <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            Remark
+          </div>
+          <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
+        </div>
+        <div className="self-stretch flex flex-col gap-1">
+          <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Remark</div>
+          <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
+            <CellWithTooltip>-</CellWithTooltip>
+          </div>
+        </div>
       </div>
 
       {/* No Show Modal */}

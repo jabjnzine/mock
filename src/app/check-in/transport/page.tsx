@@ -1,26 +1,90 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Input } from "@heroui/react";
-import { QrCodeIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { QrCodeIcon, ChevronRightIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import BookingDetails from "../../components/BookingDetails";
+
+const TRANSPORT_CHECK_IN_CODE = "TFtest-01";
+const STORAGE_KEY_CHECKED_IN = "transportCheckedInBookingCodes";
+
+function getCheckedInBookingCodes(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_CHECKED_IN);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isTransportCheckInCode(input: string): boolean {
+  const normalized = input.trim().replace(/\s/g, "");
+  return normalized.toLowerCase() === TRANSPORT_CHECK_IN_CODE.toLowerCase();
+}
 
 /**
  * TM_CheckIn — Transport > Check In
  * หน้า Check In สำหรับ Transport (กรอก/สแกน Booking ID)
+ * ใช้ TFtest-01 เป็นตัวเปิด View Booking แบบ Drawer
  */
 export default function TransportCheckInPage() {
   const router = useRouter();
   const [bookingId, setBookingId] = useState("");
+  const [mounted, setMounted] = useState(false);
+  const [showBookingDrawer, setShowBookingDrawer] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  const openBookingDrawer = (code: string) => {
+    setDrawerBookingId(code);
+    setShowBookingDrawer(true);
+    setTimeout(() => setDrawerOpen(true), 0);
+  };
+
+  const closeBookingDrawer = () => {
+    setDrawerOpen(false);
+    setTimeout(() => {
+      setShowBookingDrawer(false);
+      setDrawerBookingId(null);
+    }, 300);
+  };
+
+  const addCheckedInCode = (code: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY_CHECKED_IN);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(code)) {
+        sessionStorage.setItem(STORAGE_KEY_CHECKED_IN, JSON.stringify([...list, code]));
+      }
+    } catch {}
+  };
 
   const handleCheckIn = () => {
     const id = bookingId.trim();
     if (!id) return;
-    // TODO: นำทางไปหน้า View Booking ของ Transport เมื่อมี route
+    if (isTransportCheckInCode(id)) {
+      openBookingDrawer(id);
+      return;
+    }
     router.push(`/check-in/transport/list`);
+  };
+
+  const handleScan = () => {
+    setBookingId(TRANSPORT_CHECK_IN_CODE);
+    const input = document.querySelector<HTMLInputElement>('input[name="booking-id"]');
+    if (input) {
+      input.focus();
+      input.select();
+    }
   };
 
   return (
@@ -80,7 +144,7 @@ export default function TransportCheckInPage() {
                     />
                     <button
                       type="button"
-                      onClick={() => document.querySelector<HTMLInputElement>('input[name="booking-id"]')?.focus()}
+                      onClick={handleScan}
                       className="size-12 shrink-0 p-2 rounded-lg border-2 border-blue-700 flex justify-center items-center text-blue-700 hover:bg-blue-50 transition-colors"
                       title="สแกน Booking ID"
                     >
@@ -102,6 +166,57 @@ export default function TransportCheckInPage() {
         </main>
         <Footer />
       </div>
+
+      {/* Drawer: View Booking (เมื่อกรอก TFtest-01) */}
+      {mounted &&
+        showBookingDrawer &&
+        drawerBookingId &&
+        createPortal(
+          <div
+            className={`fixed inset-0 z-[9998] flex bg-black/40 transition-opacity duration-300 ${
+              drawerOpen ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <div
+              className={`fixed inset-0 bg-stone-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${
+                drawerOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Check in
+                  </span>
+                  <ChevronRightIcon className="size-5 text-[#b9b9b9]" />
+                  <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                    View Booking
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeBookingDrawer}
+                  className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-zinc-800 border border-gray-200"
+                  aria-label="ปิด"
+                >
+                  <XMarkIcon className="size-5" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+                <div className="w-full max-w-[1568px] mx-auto p-6">
+                  <BookingDetails
+                    bookingId={drawerBookingId}
+                    onCancel={closeBookingDrawer}
+                    onCheckIn={() => {
+                      addCheckedInCode(drawerBookingId!);
+                      closeBookingDrawer();
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

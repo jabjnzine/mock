@@ -131,14 +131,9 @@ export default function CheckInExcursionPage() {
   };
 
   const handleScan = () => {
-    // เดโม่: เมื่อกดสแกน ให้กรอกหมายเลข Booking ตัวอย่าง TS0001 ลงในช่องให้เลย
+    // เดโม่: เมื่อกดสแกน ให้กรอกหมายเลข Booking ตัวอย่าง TS0001 ลงในช่องให้เลย (ไม่แจ้งเตือน)
     const demoCode = "TS0001";
     setBookingId(demoCode);
-
-    if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-      (window as unknown as { BarcodeDetector?: unknown }).BarcodeDetector &&
-        alert("ฟีเจอร์สแกนจะเปิดกล้อง (รองรับเมื่อเชื่อม API/กล้องแล้ว)");
-    }
 
     const input = document.querySelector<HTMLInputElement>('input[name="booking-id"]');
     if (input) {
@@ -241,34 +236,34 @@ export default function CheckInExcursionPage() {
             }`}
           >
             <div
-              className={`h-full w-full bg-stone-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${
+              className={`fixed inset-0 bg-stone-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${
                 drawerOpen ? "translate-x-0" : "translate-x-full"
               }`}
             >
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
+              {/* Drawer Header — แถบบนเต็มความกว้าง */}
+              <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shrink-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                    Booking
+                  <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                    Check in
                   </span>
-                  <span className="text-zinc-800">/</span>
-                  <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                  <ChevronRightIcon className="size-5 text-[#b9b9b9]" />
+                  <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
                     View Booking
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={closeBookingDrawer}
-                  className="size-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-zinc-800"
-                  aria-label="ปิด Drawer"
+                  className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-zinc-800 border border-gray-200"
+                  aria-label="ปิด"
                 >
                   <XMarkIcon className="size-5" />
                 </button>
               </div>
 
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="w-full max-w-[1040px] mx-auto">
+              {/* Drawer Body — เต็มจอ เลื่อนได้ */}
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+                <div className="w-full max-w-[1568px] mx-auto p-6">
                   <BookingDetails
                     bookingId={drawerBookingId}
                     onCancel={closeBookingDrawer}

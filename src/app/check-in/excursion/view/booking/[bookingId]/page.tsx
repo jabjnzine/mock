@@ -24,7 +24,7 @@ const mockBooking = {
   program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
   tripType: "Join In",
   seller: "Klook",
-  travelDate: "27/01/2026",
+  travelDate: "17/12/2025",
   payment: "Pending",
   option: "Day Trip with Shared Transfer excluding National Park Fee",
   tripRound: "07:30",
@@ -123,7 +123,7 @@ export default function ViewBookingPage() {
             <div className="w-full inline-flex justify-between items-center">
               <div className="flex justify-start items-center gap-2">
                 <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                  Booking
+                  Check in
                 </span>
                 <ChevronRightIcon className="size-6 text-zinc-800" />
                 <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
@@ -131,15 +131,6 @@ export default function ViewBookingPage() {
                 </span>
               </div>
               <div className="flex justify-start items-start gap-6">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="px-5 py-2 bg-white rounded-full border border-blue-700 flex justify-center items-center gap-2 hover:bg-blue-50 transition-colors"
-                >
-                  <span className="text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                    Cancel
-                  </span>
-                </button>
                 <button
                   type="button"
                   onClick={handleCheckIn}
