@@ -170,7 +170,6 @@ export default function TransportCheckInListPage() {
                   <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Export</span>
                   <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={2} />
                 </button>
-                <div className="w-10 self-stretch border-l border-[#d9d9d9]" aria-hidden />
               </div>
             </div>
 
