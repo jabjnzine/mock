@@ -180,6 +180,8 @@ export default function CheckInListPage() {
               <div className="flex justify-start items-center gap-2">
                 <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Check In</span>
                 <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+                <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Excursion</span>
+                <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
                 <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Check In List</span>
               </div>
               <div className="flex justify-end items-center gap-6">

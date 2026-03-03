@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@heroui/react";
-import { QrCodeIcon } from "@heroicons/react/24/outline";
+import { QrCodeIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
@@ -30,15 +30,15 @@ export default function TransportCheckInPage() {
         <Header />
         <main className="flex-1 overflow-auto p-6">
           <div className="flex items-center gap-2 mb-6">
-            <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+            <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
               Check In
             </span>
-            <span className="text-zinc-800">/</span>
-            <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+            <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+            <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
               Transport
             </span>
-            <span className="text-zinc-800">/</span>
-            <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+            <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+            <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
               Check In
             </span>
           </div>

@@ -155,15 +155,15 @@ export default function CheckInExcursionPage() {
         <main className="flex-1 overflow-auto p-6 bg-stone-50">
           <div className="w-full max-w-[1616px] mx-auto">
           <div className="flex items-center gap-2 mb-6">
-            <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai',sans-serif] leading-6 tracking-tight">
+            <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai',sans-serif] leading-6 tracking-tight">
               Check In
             </span>
-            <span className="text-zinc-800">/</span>
-            <span className="text-zinc-400 text-base font-medium font-['IBM_Plex_Sans_Thai',sans-serif] leading-6 tracking-tight">
+            <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+            <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai',sans-serif] leading-6 tracking-tight">
               Excursion
             </span>
-            <span className="text-zinc-800">/</span>
-            <span className="text-blue-700 text-lg font-semibold font-['IBM_Plex_Sans_Thai',sans-serif] leading-7 tracking-tight">
+            <ChevronRightIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+            <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai',sans-serif] leading-7 tracking-tight">
               Check In
             </span>
           </div>
