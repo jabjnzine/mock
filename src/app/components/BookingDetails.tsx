@@ -350,7 +350,7 @@ export default function BookingDetails({
               <div className="flex-1 min-w-[140px] flex flex-col gap-1">
                 <div className="text-[#2a2a2a] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Booking No.</div>
                 <div className="px-3 py-2 bg-[#f8f8f8] rounded-lg text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 min-w-0">
-                  <CellWithTooltip>{bookingData.bookingNo}</CellWithTooltip>
+                  <CellWithTooltip>{bookingId}</CellWithTooltip>
                 </div>
               </div>
               <div className="flex-1 min-w-[140px] flex flex-col gap-1">
@@ -775,7 +775,7 @@ export default function BookingDetails({
         checkInPax={checkInPax}
         bookingQuantity={bookingData.bookingQuantity}
         noShowPax={noShowPax}
-        bookingNo={bookingData.bookingNo}
+        bookingNo={bookingId}
         travelDate={bookingData.travelDate}
         tripRound={bookingData.tripRound}
         pricePerPax={bookingData.units.find((u) => u.quantity > 0)?.price || 1500}
