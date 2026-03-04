@@ -22,6 +22,7 @@ import {
   UserIcon,
   UserCircleIcon,
   MapIcon,
+  MapPinIcon,
   GlobeAltIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
@@ -63,6 +64,66 @@ const IconAmountPax = () => (
     <path d="M18.3398 20C19.0598 19.85 19.7398 19.56 20.2998 19.13C21.8598 17.96 21.8598 16.03 20.2998 14.86C19.7498 14.44 19.0798 14.16 18.3698 14" stroke="#007800" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+/** Itinerary items สำหรับ Itinerary Detail (Phi Phi / Phuket) */
+const ITINERARY_ITEMS: { time: string; type: "start" | "travel" | "end"; lines: string[] }[] = [
+  { time: "08 : 30", type: "start", lines: ["ต้อนรับคุณที่ Boat Ramp Pier, ภูเก็ต พร้อมบริการของว่างและเครื่องดื่มหลากหลาย", "ลงทะเบียน Check-in และรับอุปกรณ์ Snorkeling Gear"] },
+  { time: "09 : 00", type: "travel", lines: ["ออกเดินทางจากท่าเรือไปยัง Phi Phi Island โดยเรือ Speedboat"] },
+  { time: "10 : 00", type: "travel", lines: ["เดินทางถึง Bamboo Island หนึ่งในจุดที่สวยที่สุดของทะเลอันดามัน", "หาดทรายขาวและน้ำทะเลสีฟ้าใสผสมผสานกันอย่างลงตัว", "เพลิดเพลินกับการว่ายน้ำ, ดำน้ำตื้น, อาบแดด, หรือเดินเล่นบริเวณชายหาด"] },
+  { time: "12 : 30", type: "travel", lines: ["รับประทานอาหารกลางวันแสนอร่อยที่ร้านอาหารริมหาดบน Phi Phi Don Island", "และพักผ่อนตามอัธยาศัยบนชายหาด"] },
+  { time: "14 : 00", type: "travel", lines: ["ผ่อนคลายและว่ายน้ำใน the emerald lagoon ที่ Pileh Lagoon", "แวะชมลิงที่ Monkey Beach จากนั้นล่องเรือชมวิวบริเวณด้านนอกของ Viking Cave"] },
+  { time: "15 : 00", type: "travel", lines: ["เดินทางถึง Maya Bay สถานที่ถ่ายทำภาพยนตร์เรื่อง The Beach", "พักผ่อนบนชายหาด และสนุกกับน้ำทะเลใส"] },
+  { time: "16 : 00", type: "travel", lines: ["เดินทางกลับภูเก็ตพร้อมความประทับใจ"] },
+  { time: "17 : 00", type: "end", lines: ["เดินทางถึง Boat Ramp Pier และส่งกลับโรงแรม"] },
+];
+
+/** Itinerary items (English) for ENG tab */
+const ITINERARY_ITEMS_ENG: { time: string; type: "start" | "travel" | "end"; lines: string[] }[] = [
+  { time: "08 : 30", type: "start", lines: ["Welcome you to Boat Ramp Pier, Phuket. Serve your snacks and a variety of drinks. Check-in and pick up your snorkeling gear"] },
+  { time: "09 : 00", type: "travel", lines: ["Depart from the pier to Phi Phi Island by speedboat"] },
+  { time: "10 : 00", type: "travel", lines: ["Arrive at Bamboo Island. One of the most beautiful spots in the Andaman Sea, White sands and turquoise waters blend seamlessly for a marvelous view. Enjoy your time for swimming, snorkeling, sunbath, or walking around a beautiful area"] },
+  { time: "12 : 30", type: "travel", lines: ["Enjoy a great lunch at a beachside restaurant on Phi Phi Don Island and have free time on the beach"] },
+  { time: "14 : 00", type: "travel", lines: ["Relaxing and swimming in the emerald lagoon at Pileh Lagoon. Go to Monkey Beach, then go sightseeing outside at Viking cave"] },
+  { time: "15 : 00", type: "travel", lines: ["Arrive at Maya Bay where the movie \"The Beach\" was filmed. Relaxing on the beach and crystal clear water"] },
+  { time: "16 : 00", type: "travel", lines: ["Back to Phuket with the impression"] },
+  { time: "17 : 00", type: "end", lines: ["Arrive at Boat Ramp Pier and go back to your hotel"] },
+];
+
+/** Itinerary สำหรับ Trip Code EC2581C4 (Damnoen Saduak / Central World) — ภาษาไทย */
+const ITINERARY_EC2581C4_TH: { time: string; type: "start" | "travel" | "end"; lines: string[] }[] = [
+  { time: "07 : 30", type: "start", lines: ["ออกเดินทางจากเซ็นทรัลเวิลด์ (โซน Hug Thai)"] },
+  { time: "09 : 40", type: "travel", lines: ["เดินทางถึงตลาดน้ำดำเนินสะดวก"] },
+  { time: "11 : 30", type: "travel", lines: ["ออกเดินทางจากตลาดน้ำดำเนินสะดวก"] },
+  { time: "12 : 00", type: "travel", lines: ["แวะที่ Buffalo Café (ไม่เกิน 1 ชั่วโมง)"] },
+  { time: "13 : 10", type: "travel", lines: ["เดินทางไปตลาดร่มหุบแม่กลอง (~20–25 นาที)"] },
+  { time: "13 : 35", type: "travel", lines: ["เดินเล่น / อิสระในการถ่ายภาพ"] },
+  { time: "14 : 30", type: "travel", lines: ["ชมขบวนรถไฟวิ่งผ่านตลาด"] },
+  { time: "15 : 00", type: "travel", lines: ["เดินทางกลับกรุงเทพฯ"] },
+  { time: "17 : 00–17 : 30", type: "end", lines: ["ถึงกรุงเทพฯ (ขึ้นอยู่กับสภาพการจราจร)"] },
+];
+
+/** Itinerary สำหรับ Trip Code EC2581C4 — ENG */
+const ITINERARY_EC2581C4_ENG: { time: string; type: "start" | "travel" | "end"; lines: string[] }[] = [
+  { time: "07 : 30", type: "start", lines: ["Depart from CentralWorld (Hug Thai Zone)"] },
+  { time: "09 : 40", type: "travel", lines: ["Arrive at Damnoen Saduak"] },
+  { time: "11 : 30", type: "travel", lines: ["Depart from Damnoen Saduak Floating Market"] },
+  { time: "12 : 00", type: "travel", lines: ["Stop at Buffalo Café (max. 1 hr)"] },
+  { time: "13 : 10", type: "travel", lines: ["Depart to Maeklong Railway Market (~20–25 mins)"] },
+  { time: "13 : 35", type: "travel", lines: ["Walk around / Free time for photos"] },
+  { time: "14 : 30", type: "travel", lines: ["Watch the train arrival at the market"] },
+  { time: "15 : 00", type: "travel", lines: ["Return to Bangkok"] },
+  { time: "17 : 00–17 : 30", type: "end", lines: ["Arrive in Bangkok (depending on traffic)"] },
+];
+
+/** Itinerary สำหรับ Trip Code EC255D2C (ท่าเตียน / วัดอรุณ ฯลฯ) — ภาษาไทย */
+const ITINERARY_EC255D2C_TH: { time: string; type: "start" | "travel" | "end"; lines: string[] }[] = [
+  { time: "08 : 45", type: "start", lines: ["นัดพบลูกค้าที่ท่าเตียน (ค่าน้ำ 10 บาท/ผ้าเย็น 12 บาท)"] },
+  { time: "09 : 00", type: "travel", lines: ["นั่งเรือข้ามฟากไปยังวัดอรุณราชวราราม (ค่าเรือ 10 THB/PAX)"] },
+  { time: "10 : 30", type: "travel", lines: ["เยี่ยมชมวัดพระเชตุพนวิมลมังคลาราม (วัดโพธิ์)"] },
+  { time: "12 : 00", type: "travel", lines: ["รับประทานอาหารกลางวันที่ท่าเตียน (ลูกค้าออกค่าใช้จ่ายเอง)"] },
+  { time: "13 : 00", type: "travel", lines: ["เยี่ยมชมวัดพระศรีรัตนศาสดาราม"] },
+  { time: "15 : 00", type: "end", lines: ["จบทริปโดยสวัสดิภาพที่วัดพระศรีรัตนศาสดาราม"] },
+];
 
 /**
  * Status ของ Booking:
@@ -112,6 +173,7 @@ export default function CheckInViewPage() {
     booking: true,
   });
   const [selectedLanguage, setSelectedLanguage] = useState("EN");
+  const [itineraryLang, setItineraryLang] = useState<"th" | "en">("th");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookingIds, setSelectedBookingIds] = useState<Set<string>>(new Set());
   const pendingCheckInBookingIdRef = useRef<string | null>(null);
@@ -691,27 +753,141 @@ export default function CheckInViewPage() {
               </div>
             </div>
 
-            {/* Itinerary Detail */}
-            <div data-property-1="Default" className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl flex flex-col justify-start items-center gap-6 overflow-hidden">
-              <button
-                onClick={() => toggleSection("itinerary")}
-                className="w-full inline-flex justify-start items-center gap-2"
-              >
-                <MapIcon className="size-8 text-[#265ED6] shrink-0" />
-                <span className="flex-1 text-left text-[#265ED6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Itinerary Detail</span>
-                <div className="flex justify-center items-center">
-                  {expandedSections.itinerary ? (
-                    <ChevronUpIcon className="size-6 text-zinc-800" />
-                  ) : (
-                    <ChevronDownIcon className="size-6 text-zinc-800" />
-                  )}
-                </div>
-              </button>
-              {expandedSections.itinerary && (
-                <div className="w-full pt-2 border-t border-zinc-200">
-                  <p className="text-sm text-zinc-600 font-['IBM_Plex_Sans_Thai']">Itinerary details will be displayed here...</p>
-                </div>
-              )}
+            {/* Itinerary Detail — ตามรูปและ reference */}
+            <div className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl inline-flex flex-col justify-start items-center gap-6 overflow-hidden">
+              <div className="self-stretch flex flex-col justify-start items-start gap-6">
+                <button
+                  type="button"
+                  onClick={() => toggleSection("itinerary")}
+                  className="self-stretch inline-flex justify-start items-center gap-2"
+                >
+                  <div className="w-8 h-8 flex justify-center items-center text-[#265ed6] shrink-0">
+                    <MapPinIcon className="w-6 h-6" strokeWidth={1.5} />
+                  </div>
+                  <span className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 text-left">Itinerary Detail</span>
+                  <div className="flex justify-center items-center gap-12">
+                    {expandedSections.itinerary ? (
+                      <ChevronUpIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+                    ) : (
+                      <ChevronDownIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
+                    )}
+                  </div>
+                </button>
+                {expandedSections.itinerary && (
+                  <div className="self-stretch flex flex-col justify-start items-start gap-6">
+                    <div className="self-stretch inline-flex justify-start items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setItineraryLang("th")}
+                        className={`p-2 inline-flex flex-col justify-start items-start gap-2.5 ${itineraryLang === "th" ? "border-b-4 border-[#fe7931]" : "rounded-sm"}`}
+                      >
+                        <span className={itineraryLang === "th" ? "text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight" : "text-[#d9d9d9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight"}>
+                          ภาษาไทย
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setItineraryLang("en")}
+                        className={`p-2 rounded-sm flex justify-center items-center gap-2 ${itineraryLang === "en" ? "border-b-4 border-[#fe7931]" : ""}`}
+                      >
+                        <span className={itineraryLang === "en" ? "text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight" : "text-[#d9d9d9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight"}>
+                          ENG
+                        </span>
+                      </button>
+                    </div>
+                    <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                      {tripCode === "EC255D2C" && itineraryLang === "en" ? (
+                        <div className="self-stretch px-6 py-12 flex flex-col justify-center items-center gap-4">
+                          <img
+                            src="/no-itinerary-en.png"
+                            alt="No information available"
+                            className="max-w-[200px] w-full h-auto object-contain"
+                          />
+                          <span className="text-[#676363] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-5">No information available</span>
+                        </div>
+                      ) : (
+                        (() => {
+                          const items = tripCode === "EC255D2C"
+                            ? ITINERARY_EC255D2C_TH
+                            : tripCode === "EC2581C4"
+                              ? (itineraryLang === "en" ? ITINERARY_EC2581C4_ENG : ITINERARY_EC2581C4_TH)
+                              : (itineraryLang === "en" ? ITINERARY_ITEMS_ENG : ITINERARY_ITEMS);
+                          return items.map((item, index) => {
+                            const isFirstTravel = item.type === "travel" && items.findIndex((i) => i.type === "travel") === index;
+                            return (
+                        <React.Fragment key={index}>
+                          {item.type === "start" && (
+                            <div className="self-stretch px-6 pt-6 opacity-80 flex flex-col justify-start items-start gap-2 overflow-hidden">
+                              <div className="inline-flex justify-start items-center gap-3 flex-wrap">
+                                <div className="w-8 h-8 bg-sky-50 rounded-full flex justify-center items-center shrink-0">
+                                  <MapPinIcon className="w-5 h-5 text-[#0ba4eb]" strokeWidth={1.5} />
+                                </div>
+                                <div className="flex justify-center items-center gap-2">
+                                  <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{item.time}</span>
+                                </div>
+                                <div className="w-2 h-2 bg-[#2a2a2a] rounded-full shrink-0" />
+                                <div className="flex justify-center items-center gap-2 min-w-0 flex-1">
+                                  <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                                    {item.lines.join(" ")}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="self-stretch h-0 border-t border-[#d9d9d9]" />
+                            </div>
+                          )}
+                          {item.type === "travel" && (
+                            <div className={`self-stretch px-6 opacity-80 flex flex-col justify-start items-start gap-2 overflow-hidden ${isFirstTravel ? "pt-6" : "pt-0"}`}>
+                              <div className="flex flex-col justify-start items-start gap-2">
+                                <div className="inline-flex justify-start items-center gap-3">
+                                  <div className="w-8 h-8 bg-[#ebfdf2] rounded-full flex justify-center items-center shrink-0">
+                                    <UserIcon className="w-5 h-5 text-[#12b669]" strokeWidth={1.5} />
+                                  </div>
+                                  <div className="flex justify-center items-center gap-2">
+                                    <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{item.time}</span>
+                                  </div>
+                                </div>
+                                <div className="pl-[46px] flex flex-col justify-start items-start gap-1">
+                                  {item.lines.map((line, i) => (
+                                    <div key={i} className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                                      {line}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {item.type === "end" && (
+                            <>
+                              <div className="self-stretch px-6">
+                                <div className="self-stretch h-0 border-t border-[#d9d9d9]" />
+                              </div>
+                              <div className="self-stretch px-6 pt-6 opacity-80 flex flex-col justify-start items-start gap-2 overflow-hidden">
+                                <div className="inline-flex justify-start items-center gap-3 flex-wrap">
+                                  <div className="w-8 h-8 bg-sky-50 rounded-full flex justify-center items-center shrink-0">
+                                    <MapPinIcon className="w-5 h-5 text-[#0ba4eb]" strokeWidth={1.5} />
+                                  </div>
+                                  <div className="flex justify-center items-center gap-2">
+                                    <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{item.time}</span>
+                                  </div>
+                                  <div className="w-2 h-2 bg-[#2a2a2a] rounded-full shrink-0" />
+                                  <div className="flex justify-center items-center gap-2 min-w-0 flex-1">
+                                    <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                                      {item.lines.join(" ")}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </React.Fragment>
+                            );
+                          });
+                        })()
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Booking Detail — ตามดีไซน์ width 1136, padding 48/24, gap 12, #265ED6, #006AFF, Search 250 #D9D9D9 */}
