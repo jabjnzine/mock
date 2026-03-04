@@ -32,6 +32,10 @@ interface NoShowModalProps {
   onConfirm: (condition: string, data?: unknown) => void;
   onLater?: (noShowPax: number) => void;
   hideLaterButton?: boolean;
+  /** When provided, Back on Condition step closes modal and parent should open CheckInModal */
+  onBackToCheckIn?: () => void;
+  /** When true, hide Back button on "Select No-show Condition" step (e.g. from transport/excursion view page) */
+  hideBackOnConditionStep?: boolean;
 }
 
 type ModalType = "select" | "unitBreakdown" | "condition" | "fullCharge" | "reschedule" | "rescheduleWarning" | "refund";
@@ -52,6 +56,8 @@ export default function NoShowModal({
   onConfirm,
   onLater,
   hideLaterButton = false,
+  onBackToCheckIn,
+  hideBackOnConditionStep = false,
 }: NoShowModalProps) {
   const [modalType, setModalType] = useState<ModalType>("condition");
   const [noShowCount, setNoShowCount] = useState(noShowPax > 0 ? noShowPax : bookingQuantity);
@@ -1121,24 +1127,37 @@ export default function NoShowModal({
           (modalType === "select" || modalType === "unitBreakdown" || modalType === "condition" ? "justify-between bg-[#F8F8F8]" : modalType === "rescheduleWarning" ? "justify-start bg-stone-50 gap-2" : isRescheduleOrRefund ? "justify-end bg-stone-50" : "justify-end border-t border-gray-200 bg-gray-50")
         }>
           {modalType === "unitBreakdown" ? (
-            <div className="flex-1 flex justify-end items-center gap-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
-              >
-                <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Cancel</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleUnitBreakdownNext}
-                disabled={!isUnitBreakdownValid}
-                className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 transition-opacity ${
-                  isUnitBreakdownValid ? "bg-[#265ED6] text-white hover:opacity-90" : "bg-[#E7E7E9] text-white cursor-not-allowed"
-                }`}
-              >
-                <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Continue</span>
-              </button>
+            <div className="flex-1 flex justify-between items-center gap-4">
+              <div className="flex justify-start items-center gap-4">
+                {onBackToCheckIn && (
+                  <button
+                    type="button"
+                    onClick={onBackToCheckIn}
+                    className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+                  >
+                    <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Back</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex justify-end items-center gap-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+                >
+                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Cancel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUnitBreakdownNext}
+                  disabled={!isUnitBreakdownValid}
+                  className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 transition-opacity ${
+                    isUnitBreakdownValid ? "bg-[#265ED6] text-white hover:opacity-90" : "bg-[#E7E7E9] text-white cursor-not-allowed"
+                  }`}
+                >
+                  <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Continue</span>
+                </button>
+              </div>
             </div>
           ) : modalType === "select" ? (
             <div className="flex-1 flex justify-end items-center gap-4">
@@ -1159,15 +1178,21 @@ export default function NoShowModal({
             </div>
           ) : modalType === "condition" ? (
             <>
-              {!hideLaterButton && (
+              {!hideBackOnConditionStep && (
                 <div className="flex justify-end items-center gap-4">
                   <button
                     type="button"
-                    onClick={showStep1SelectUnit ? handleConditionBack : onClose}
+                    onClick={
+                      showStep1SelectUnit
+                        ? handleConditionBack
+                        : onBackToCheckIn
+                          ? onBackToCheckIn
+                          : onClose
+                    }
                     className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
                   >
                     <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
-                      {showStep1SelectUnit ? "Back" : "Cancel"}
+                      {showStep1SelectUnit ? "Back" : onBackToCheckIn ? "Back" : "Cancel"}
                     </span>
                   </button>
                 </div>

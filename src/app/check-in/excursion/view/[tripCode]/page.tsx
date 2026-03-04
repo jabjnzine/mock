@@ -176,9 +176,12 @@ export default function CheckInViewPage() {
   const [itineraryLang, setItineraryLang] = useState<"th" | "en">("th");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBookingIds, setSelectedBookingIds] = useState<Set<string>>(new Set());
+  const [remarkCheckIn, setRemarkCheckIn] = useState("");
   const pendingCheckInBookingIdRef = useRef<string | null>(null);
   const pendingNoShowRef = useRef<{ bookingId: string; noShowPax: number; originalPax: number } | null>(null);
   const pendingNoShowFromCheckInRef = useRef<number | null>(null);
+  /** true เมื่อเปิด NoShowModal จากการกด Check-in แล้วใส่จำนวนไม่ครบ (ให้แสดงปุ่ม Back ใน Select No-show Condition) */
+  const noShowModalOpenedFromCheckInRef = useRef(false);
   const pendingOriginalBookingRef = useRef<{ bookingId: string; checkIn: number; noShow: number; status: Booking["status"] } | null>(null);
   const pendingRescheduleRef = useRef<{ bookingId: string; payload: unknown } | null>(null);
   const pendingRefundRef = useRef<{ bookingId: string; payload: unknown } | null>(null);
@@ -192,6 +195,7 @@ export default function CheckInViewPage() {
       );
     }
     pendingNoShowFromCheckInRef.current = null;
+    noShowModalOpenedFromCheckInRef.current = false;
     pendingOriginalBookingRef.current = null;
   };
 
@@ -655,7 +659,7 @@ export default function CheckInViewPage() {
                 </div>
                 <div className="w-10 h-px bg-[#D9D9D9] shrink-0 self-center" aria-hidden />
                 <button
-                  onClick={() => router.push("/check-in/excursion/list")}
+                  onClick={() => router.push(isTransportFlow ? "/check-in/transport/list" : "/check-in/excursion/list")}
                   className="px-5 py-2 bg-white rounded-[100px] border border-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
                 >
                   <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Close</span>
@@ -1145,6 +1149,7 @@ export default function CheckInViewPage() {
                                     setShowNoShowModal(false);
                                     // ตั้งค่า No Show ให้เท่ากับจำนวนทั้งหมด และข้ามหน้าเลือกจำนวนไปหน้า Condition ทันที
                                     pendingNoShowFromCheckInRef.current = booking.pax;
+                                    noShowModalOpenedFromCheckInRef.current = false;
                                     setSelectedBooking(booking);
                                     setNoShowModalFromAddCondition(false);
                                     // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
@@ -1190,6 +1195,7 @@ export default function CheckInViewPage() {
                                   setShowCheckInModal(false);
                                   setShowNoShowModal(false);
                                   setSelectedBooking(booking);
+                                    noShowModalOpenedFromCheckInRef.current = false;
                                     setNoShowModalFromAddCondition(true);
                                   // เปิด NoShowModal หลังจากปิด modal อื่นๆ แล้ว
                                   setTimeout(() => setShowNoShowModal(true), 0);
@@ -1200,21 +1206,30 @@ export default function CheckInViewPage() {
                                 <div className="text-white text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-[0.02em]">Add Condition</div>
                               </button>
                             )}
-                            {booking.status === "checkedIn" && (
-                              <div className="flex justify-start items-center gap-2">
-                                <ClockIcon className="size-4 text-[#848484] shrink-0" />
-                                <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
-                                  {tripData.travelDate}:{booking.checkedInTime || "00:00"}
-                                </span>
-                              </div>
-                            )}
-                            {booking.status === "noShow" && (
-                              <div className="flex justify-start items-center gap-2">
-                                <ClockIcon className="size-4 text-[#848484] shrink-0" />
-                                <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
-                                  {tripData.travelDate} : {tripData.tripRound.replace(":", " : ")}
-                                </span>
-                              </div>
+                            {(booking.status === "checkedIn" || booking.status === "noShow") && (
+                              <>
+                                <div className="flex justify-start items-center gap-2">
+                                  <CalendarIcon className="size-4 text-[#848484] shrink-0" />
+                                  <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
+                                    {booking.status === "checkedIn"
+                                      ? `${tripData.travelDate}:${booking.checkedInTime || "00:00"}`
+                                      : `${tripData.travelDate} : ${tripData.tripRound.replace(":", " : ")}`}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setShowWarningModal(false);
+                                    setShowNoShowModal(false);
+                                    setSelectedBooking(booking);
+                                    setTimeout(() => setShowCheckInModal(true), 0);
+                                  }}
+                                  className="p-1 bg-[#265ED6] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity shrink-0"
+                                  aria-label="Edit"
+                                >
+                                  <PencilSquareIcon className="size-6 text-white" strokeWidth={1.5} />
+                                </button>
+                              </>
                             )}
                           </div>
                           {/* No-show Condition Row - แสดงเมื่อ booking นี้มี No Show */}
@@ -1235,7 +1250,27 @@ export default function CheckInViewPage() {
                 </>
               )}
             </div>
+  {/* Remark Check In — การ์ดแยกเต็มความกว้างด้านล่าง Booking Detail (ตามรูป) */}
+  <div className="w-full max-w-[1136px] px-12 py-6 bg-white rounded-2xl flex flex-col justify-center items-stretch gap-3 overflow-hidden">
+              <div className="flex flex-col justify-start items-stretch gap-3">
+                <div className="flex flex-col justify-center items-stretch gap-1">
+                  <label htmlFor="remark-check-in" className="text-[#265ED6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">
+                    Remark Check In
+                  </label>
+                <textarea
+                  id="remark-check-in"
+                  value={remarkCheckIn}
+                  onChange={(e) => setRemarkCheckIn(e.target.value)}
+                  placeholder="Add a remark for this trip's check-in (optional)..."
+                  rows={5}
+                  className="w-full min-h-[120px] px-3 py-2 bg-white rounded-lg border border-[#D9D9D9] text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight placeholder:text-[#B9B9B9] focus:border-[#265ED6] focus:outline-none resize-y"
+                />
+                </div>
+              </div>
+            </div>
           </div>
+
+          
 
           {/* Footer */}
           <Footer />
@@ -1337,22 +1372,36 @@ export default function CheckInViewPage() {
         const bookingForModal = bookingStates.find((b) => b.id === selectedBooking.id) ?? selectedBooking;
         const pax = bookingForModal.pax;
         const isDamnoenProgram = code === "EC25DM35" || code === "EC2581C4";
-        const damnoenUnits =
-          isDamnoenProgram && pax >= 1
-            ? (() => {
-                const seed = (bookingForModal.id + bookingForModal.bookingNo).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-                const maxInfant = Math.min(2, Math.max(0, pax - 2));
-                const infantQty = maxInfant <= 0 ? 0 : (seed % (maxInfant + 1));
-                const remaining = pax - infantQty;
-                const adultQty =
-                  remaining <= 1 ? remaining : Math.max(1, (seed % (remaining - 1)) + 1);
-                const childQty = remaining - adultQty;
-                return [
-                  { type: "Adult", price: 1500, quantity: adultQty },
-                  { type: "Child", price: 1200, quantity: childQty },
-                  { type: "Infant", price: 0, quantity: infantQty },
-                ].filter((u) => u.quantity > 0);
-              })()
+        const isMayaBayProgram = code === "EC25Z1PW";
+        const modalUnits =
+          pax >= 1
+            ? isMayaBayProgram
+              ? (() => {
+                  const seed = (bookingForModal.id + bookingForModal.bookingNo).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+                  const maxInfant = Math.min(2, Math.max(0, pax - 1));
+                  const infantQty = maxInfant <= 0 ? 0 : (seed % (maxInfant + 1));
+                  const personQty = pax - infantQty;
+                  return [
+                    { type: "Person", price: 1500, quantity: personQty },
+                    { type: "Infant (Default)", price: 0, quantity: infantQty },
+                  ].filter((u) => u.quantity > 0);
+                })()
+              : (code === "EC255D2C" || isDamnoenProgram)
+                ? (() => {
+                    const seed = (bookingForModal.id + bookingForModal.bookingNo).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+                    const maxInfant = Math.min(2, Math.max(0, pax - 2));
+                    const infantQty = maxInfant <= 0 ? 0 : (seed % (maxInfant + 1));
+                    const remaining = pax - infantQty;
+                    const adultQty =
+                      remaining <= 1 ? remaining : Math.max(1, (seed % (remaining - 1)) + 1);
+                    const childQty = remaining - adultQty;
+                    return [
+                      { type: "Adult", price: 1500, quantity: adultQty },
+                      { type: "Child", price: 1200, quantity: childQty },
+                      { type: "Infant", price: 0, quantity: infantQty },
+                    ].filter((u) => u.quantity > 0);
+                  })()
+                : undefined
             : undefined;
         return (
           <NoShowModal
@@ -1374,6 +1423,7 @@ export default function CheckInViewPage() {
               }
               pendingNoShowFromCheckInRef.current = null;
               pendingOriginalBookingRef.current = null;
+              noShowModalOpenedFromCheckInRef.current = false;
               setNoShowModalFromAddCondition(false);
             }}
             checkInPax={bookingForModal.checkIn}
@@ -1384,8 +1434,12 @@ export default function CheckInViewPage() {
             tripRound={tripData.tripRound}
             customerName={bookingForModal.customerName}
             pricePerPax={1500}
-            units={damnoenUnits}
-            hideLaterButton={noShowModalFromAddCondition}
+            units={modalUnits}
+            onBackToCheckIn={() => {
+              setShowNoShowModal(false);
+              setTimeout(() => setShowCheckInModal(true), 0);
+            }}
+            hideBackOnConditionStep={!noShowModalFromAddCondition && !noShowModalOpenedFromCheckInRef.current}
             onConfirm={(condition, data) => {
               const payload = data && typeof data === "object" ? data as { noShowPax?: number; condition?: string; [k: string]: unknown } : {};
               const noShowPax = Number(payload.noShowPax ?? 0);
@@ -1439,6 +1493,7 @@ export default function CheckInViewPage() {
               );
               // ยืนยันให้สถานะ Waiting Reason คงอยู่ ไม่ต้อง revert กลับ
               pendingNoShowFromCheckInRef.current = null;
+              noShowModalOpenedFromCheckInRef.current = false;
               pendingOriginalBookingRef.current = null;
               setShowNoShowModal(false);
               setSelectedBooking(null);
@@ -1490,6 +1545,7 @@ export default function CheckInViewPage() {
                 if (noShowCount > 0) {
                   // เก็บ noShowCount ที่คำนวณได้ไว้เพื่อส่งไปยัง NoShowModal
                   pendingNoShowFromCheckInRef.current = noShowCount;
+                  noShowModalOpenedFromCheckInRef.current = true;
                   setShowNoShowModal(true);
                 } else {
                   pendingCheckInBookingIdRef.current = selectedBooking.id;

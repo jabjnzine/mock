@@ -26,15 +26,15 @@ export default function CheckInModal({
   initialCheckIn = 0,
   onConfirm,
 }: CheckInModalProps) {
-  // Default = Total Pax (เมื่อเปิดโมดัลแสดงจำนวน pax เต็ม)
+  // Default = initialCheckIn ถ้าส่งมา (รวม 0), ไม่เช่นนั้นใช้ Total Pax
   const [checkInCount, setCheckInCount] = useState(
-    initialCheckIn !== undefined && initialCheckIn > 0 ? initialCheckIn : totalPax
+    initialCheckIn !== undefined ? initialCheckIn : totalPax
   );
 
   useEffect(() => {
     if (isOpen) {
       setCheckInCount(
-        initialCheckIn !== undefined && initialCheckIn > 0 ? initialCheckIn : totalPax
+        initialCheckIn !== undefined ? initialCheckIn : totalPax
       );
     }
   }, [isOpen, initialCheckIn, totalPax]);
@@ -133,11 +133,24 @@ export default function CheckInModal({
                     >
                       <MinusIcon className="size-5 text-[#265ED6] disabled:text-gray-400" />
                     </button>
-                    <div className="w-20 p-2 rounded-lg outline outline-1 outline-offset-[-1px] outline-[#B9B9B9] flex justify-center items-center">
-                      <span className="text-[#2A2A2A] text-xl font-semibold font-['IBM_Plex_Sans_Thai'] leading-8">
-                        {checkInCount}
-                      </span>
-                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={checkInCount}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "");
+                        if (raw === "") {
+                          setCheckInCount(0);
+                          return;
+                        }
+                        const n = parseInt(raw, 10);
+                        if (!Number.isNaN(n)) {
+                          setCheckInCount(Math.max(0, Math.min(totalPax, n)));
+                        }
+                      }}
+                      className="w-20 p-2 rounded-lg border border-[#B9B9B9] bg-white text-[#2A2A2A] text-xl font-semibold font-['IBM_Plex_Sans_Thai'] leading-8 text-center outline-none focus:border-[#265ED6] focus:ring-1 focus:ring-[#265ED6] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      aria-label="Check-in quantity"
+                    />
                     <button
                       type="button"
                       onClick={() => setCheckInCount((c) => Math.min(totalPax, c + 1))}
