@@ -18,11 +18,12 @@ const EXAMPLE_RECORDS = [
   { code: "TQC417792-02", time: "09:30 AM", persons: 2 },
 ];
 
-// กรอก TS0001 = Booking ที่เคย Split แล้ว → เลือกได้ว่าจะ Check In รายการไหน (Original TS0001, รายการเพิ่ม TS0001-1)
-const TS0001_ORIGINAL_BOOKING = "TS0001";
-const TS0001_RECORDS = [
-  { code: "TS0001", time: "07:30 AM", persons: 5 },
-  { code: "TS0001-1", time: "07:30 AM", persons: 5 },
+// TS0001 = เลขเดียว → กด Check In แล้วเข้า View Booking เลย (ไม่ขึ้น Modal)
+// TS0002 = Booking Split → ขึ้น Modal Select a Booking to Check In (TS0002, TS0002-1)
+const TS0002_ORIGINAL_BOOKING = "TS0002";
+const TS0002_RECORDS = [
+  { code: "TS0002", time: "07:30 AM", persons: 5 },
+  { code: "TS0002-1", time: "07:30 AM", persons: 5 },
 ];
 
 const STORAGE_KEY_CHECKED_IN = "excursionCheckedInBookingCodes";
@@ -54,11 +55,22 @@ function isTS0001Code(input: string): boolean {
   return normalized === "TS0001";
 }
 
+function isTS0002Code(input: string): boolean {
+  const normalized = input.trim().replace(/\s/g, "").toUpperCase();
+  return normalized === "TS0002";
+}
+
+function isTS0003Code(input: string): boolean {
+  const normalized = input.trim().replace(/\s/g, "").toUpperCase();
+  return normalized === "TS0003";
+}
+
 export default function CheckInExcursionPage() {
   const router = useRouter();
   const [bookingId, setBookingId] = useState("");
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [showTS0001Modal, setShowTS0001Modal] = useState(false);
+  const [showTS0002Modal, setShowTS0002Modal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [ts0001CheckedInCodes, setTs0001CheckedInCodes] = useState<string[]>([]);
   const [showBookingDrawer, setShowBookingDrawer] = useState(false);
@@ -67,11 +79,11 @@ export default function CheckInExcursionPage() {
 
   useEffect(() => setMounted(true), []);
 
-  // อัปเดตรายการที่ Check In ไปแล้วเมื่อเปิด modal TS0001 หรือเมื่อ mount (กลับมาหน้า Check In)
+  // อัปเดตรายการที่ Check In ไปแล้วเมื่อเปิด modal หรือเมื่อ mount (กลับมาหน้า Check In)
   useEffect(() => {
     if (!mounted) return;
     setTs0001CheckedInCodes(getCheckedInBookingCodes());
-  }, [mounted, showTS0001Modal]);
+  }, [mounted, showTS0001Modal, showTS0002Modal]);
 
   const openBookingDrawer = (code: string) => {
     setDrawerBookingId(code);
@@ -112,7 +124,15 @@ export default function CheckInExcursionPage() {
       return;
     }
     if (isTS0001Code(id)) {
-      setShowTS0001Modal(true);
+      openBookingDrawer("TS0001");
+      return;
+    }
+    if (isTS0002Code(id)) {
+      setShowTS0002Modal(true);
+      return;
+    }
+    if (isTS0003Code(id)) {
+      openBookingDrawer("TS0003");
       return;
     }
     // สำหรับ booking อื่น ๆ ให้เปิดหน้า View Booking แบบ Drawer
@@ -122,6 +142,7 @@ export default function CheckInExcursionPage() {
   const handleProceedToView = (bookingCode: string) => {
     setShowExampleModal(false);
     setShowTS0001Modal(false);
+    setShowTS0002Modal(false);
     openBookingDrawer(bookingCode);
   };
 
@@ -266,6 +287,7 @@ export default function CheckInExcursionPage() {
                 <div className="w-full max-w-[1568px] mx-auto p-6">
                   <BookingDetails
                     bookingId={drawerBookingId}
+                    tripDetailsVariant="excursion"
                     onCancel={closeBookingDrawer}
                     onCheckIn={() => {
                       addCheckedInCode(drawerBookingId);
@@ -394,9 +416,9 @@ export default function CheckInExcursionPage() {
           document.body
         )}
 
-      {/* Modal เมื่อกรอก TS0001 (Booking ที่เคย Split) — Select a Booking to Check In */}
+      {/* Modal เมื่อกรอก TS0002 (Booking Split) — Select a Booking to Check In */}
       {mounted &&
-        showTS0001Modal &&
+        showTS0002Modal &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40" role="dialog" aria-modal="true">
             <div className="w-full max-w-[930px] max-h-[90vh] overflow-auto relative">
@@ -411,7 +433,7 @@ export default function CheckInExcursionPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowTS0001Modal(false)}
+                    onClick={() => setShowTS0002Modal(false)}
                     className="size-6 flex items-center justify-center rounded hover:bg-gray-100 text-zinc-800"
                     aria-label="ปิด"
                   >
@@ -438,7 +460,7 @@ export default function CheckInExcursionPage() {
                         </div>
                         <div className="flex-1 inline-flex flex-col justify-start items-end gap-0.5">
                           <div className="self-stretch text-right text-zinc-800 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                            {TS0001_ORIGINAL_BOOKING}
+                            {TS0002_ORIGINAL_BOOKING}
                           </div>
                           <div className="self-stretch text-right text-zinc-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">
                             Original Booking
@@ -448,9 +470,9 @@ export default function CheckInExcursionPage() {
                     </div>
                   </div>
 
-                  {/* List of records (Split Booking) — รายการที่ Check In ไปแล้วจะปุ่ม Disable */}
+                  {/* List of records (Split Booking) — TS0002, TS0002-1 */}
                   <div className="self-stretch flex flex-col gap-2">
-                    {TS0001_RECORDS.map((record) => {
+                    {TS0002_RECORDS.map((record) => {
                       const alreadyCheckedIn = ts0001CheckedInCodes.includes(record.code);
                       return (
                         <div
@@ -508,7 +530,7 @@ export default function CheckInExcursionPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setShowTS0001Modal(false)}
+                      onClick={() => setShowTS0002Modal(false)}
                       className="px-5 py-2 bg-white rounded-full border border-blue-700 flex justify-center items-center gap-2 hover:bg-blue-50 transition-colors"
                     >
                       <span className="text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">

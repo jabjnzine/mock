@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   MinusIcon,
   PlusIcon,
@@ -11,7 +11,10 @@ import {
   ChevronRightIcon,
   CheckCircleIcon,
   UserGroupIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+
+export type NoShowUnit = { type: string; price: number; quantity: number };
 
 interface NoShowModalProps {
   isOpen: boolean;
@@ -24,12 +27,14 @@ interface NoShowModalProps {
   tripRound: string;
   customerName?: string;
   pricePerPax: number;
+  /** When multiple units (e.g. Infant + Adult), used to distribute no-show count per unit */
+  units?: NoShowUnit[];
   onConfirm: (condition: string, data?: unknown) => void;
   onLater?: (noShowPax: number) => void;
   hideLaterButton?: boolean;
 }
 
-type ModalType = "select" | "condition" | "fullCharge" | "reschedule" | "rescheduleWarning" | "refund";
+type ModalType = "select" | "unitBreakdown" | "condition" | "fullCharge" | "reschedule" | "rescheduleWarning" | "refund";
 type ConditionChoice = "fullCharge" | "reschedule" | "refund";
 
 export default function NoShowModal({
@@ -43,6 +48,7 @@ export default function NoShowModal({
   tripRound,
   customerName = "",
   pricePerPax,
+  units = [],
   onConfirm,
   onLater,
   hideLaterButton = false,
@@ -50,23 +56,70 @@ export default function NoShowModal({
   const [modalType, setModalType] = useState<ModalType>("condition");
   const [noShowCount, setNoShowCount] = useState(noShowPax > 0 ? noShowPax : bookingQuantity);
   const [selectedCondition, setSelectedCondition] = useState<ConditionChoice | "">("");
+  /** Check-in count per unit (Step 1 — used when multiple units) */
+  const [checkInByUnit, setCheckInByUnit] = useState<Record<string, number>>({});
 
+  const unitsWithQty = units.filter((u) => u.quantity > 0);
+  const isInfant = (u: NoShowUnit) => /infant/i.test(u.type);
+  /** Units with booked quantity, excluding Infant (used for initialising checkInByUnit when only one non-Infant unit) */
+  const unitsWithQtyExcludingInfant = unitsWithQty.filter((u) => !isInfant(u));
+  /** Show Step 1 when check-in is not full (partial no-show) AND more than 1 unit type booked */
+  const showStep1SelectUnit =
+    noShowPax >= 1 &&
+    noShowPax < bookingQuantity &&
+    unitsWithQty.length > 1;
+
+  const checkInPaxTotal = bookingQuantity - noShowCount;
+  const checkInByUnitSum = unitsWithQty.reduce((sum, u) => sum + (checkInByUnit[u.type] ?? 0), 0);
+  /** No-show per unit = quantity - checkIn */
+  const noShowByUnit = (() => {
+    const out: Record<string, number> = {};
+    unitsWithQty.forEach((u) => {
+      out[u.type] = u.quantity - (checkInByUnit[u.type] ?? 0);
+    });
+    return out;
+  })();
+  const noShowByUnitSum = unitsWithQty.reduce((sum, u) => sum + (noShowByUnit[u.type] ?? 0), 0);
+  /** Step 1 passes when total check-in by unit equals checkInPaxTotal */
+  const isUnitBreakdownValid = !showStep1SelectUnit || checkInByUnitSum === checkInPaxTotal;
+
+  const didInitForOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
-      // เริ่มต้นที่หน้า Condition เสมอ และกำหนดจำนวน No Show จากค่าที่ส่งเข้ามา
-      setModalType("condition");
-      if (noShowPax > 0) {
-        setNoShowCount(noShowPax);
-      } else {
-        setNoShowCount(bookingQuantity);
-      }
+    if (!isOpen) {
+      didInitForOpenRef.current = false;
+      return;
     }
-  }, [isOpen, bookingQuantity, noShowPax]);
+    if (didInitForOpenRef.current) return;
+    didInitForOpenRef.current = true;
+    if (noShowPax > 0) {
+      setNoShowCount(noShowPax);
+    } else {
+      setNoShowCount(bookingQuantity);
+    }
+    const withQty = units.filter((u) => u.quantity > 0);
+    const withQtyExcludingInfant = withQty.filter((u) => !/infant/i.test(u.type));
+    const initialCheckInPax = bookingQuantity - (noShowPax > 0 ? noShowPax : 0);
+    if (withQtyExcludingInfant.length <= 1) {
+      const singleNonInfant = withQtyExcludingInfant[0];
+      const base = Object.fromEntries(withQty.map((u) => [u.type, 0]));
+      if (singleNonInfant) {
+        setCheckInByUnit({ ...base, [singleNonInfant.type]: initialCheckInPax });
+      } else {
+        setCheckInByUnit(base);
+      }
+    } else {
+      setCheckInByUnit(Object.fromEntries(withQty.map((u) => [u.type, 0])));
+    }
+    const needStep1 =
+      noShowPax >= 1 && noShowPax < bookingQuantity && withQty.length > 1;
+    setModalType(needStep1 ? "unitBreakdown" : "condition");
+  }, [isOpen, bookingQuantity, noShowPax, units]);
 
   useEffect(() => {
     if (!isOpen) {
       setModalType("condition");
       setSelectedCondition("");
+      setCheckInByUnit({});
       // Reset reschedule form when modal closes
       setRescheduleTravelDate("17/12/2025");
       setRescheduleTripRound("");
@@ -130,7 +183,15 @@ export default function NoShowModal({
     }
   }, [showReasonDropdown]);
 
-  const refundAmount = pricePerPax * noShowCount;
+  const refundAmount = (() => {
+    if (unitsWithQty.length && Object.keys(noShowByUnit).length) {
+      return unitsWithQty.reduce(
+        (sum, u) => sum + (noShowByUnit[u.type] ?? 0) * u.price,
+        0
+      );
+    }
+    return pricePerPax * noShowCount;
+  })();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -138,10 +199,20 @@ export default function NoShowModal({
     }
   };
 
+  const getNoShowPayload = () => {
+    if (unitsWithQty.length && Object.keys(noShowByUnit).length) {
+      return {
+        noShowPax: noShowCount,
+        noShowByUnit: unitsWithQty.map((u) => ({ type: u.type, noShowCount: noShowByUnit[u.type] ?? 0 })),
+      };
+    }
+    return { noShowPax: noShowCount };
+  };
+
   const handleConfirm = () => {
     if (modalType === "condition") {
       if (selectedCondition === "fullCharge") {
-        onConfirm("noShowCount", { noShowPax: noShowCount, condition: "fullCharge" });
+        onConfirm("noShowCount", { ...getNoShowPayload(), condition: "fullCharge" });
         return;
       }
       if (selectedCondition === "reschedule") {
@@ -156,9 +227,9 @@ export default function NoShowModal({
     }
     if (modalType === "refund") {
       if (refundReason) {
-        // ถ้าเป็น Other Reason ต้องมี refundOtherReason ด้วย
+        // If Other Reason, must have refundOtherReason
         if (refundReason === "other_reason" && !refundOtherReason.trim()) {
-          return; // ไม่ให้ submit ถ้ายังไม่ได้กรอก Other Reason
+          return; // Don't submit if Other Reason not filled
         }
         onConfirm("refund", {
           reason: refundReason,
@@ -166,19 +237,19 @@ export default function NoShowModal({
           remarks: refundRemarks,
           photos: refundPhotos,
           amount: refundAmount,
-          noShowPax: noShowCount,
+          ...getNoShowPayload(),
         });
       }
     } else if (modalType === "reschedule") {
       if (rescheduleTravelDate && rescheduleTripRound) {
-        // ส่งออกไปให้หน้าหลักแสดง Warning popup ยืนยันอีกครั้ง
+        // Emit for parent to show warning popup for reconfirmation
         onConfirm("reschedule", {
           travelDate: rescheduleTravelDate,
           tripRound: rescheduleTripRound,
           additionalFee: parseFloat(additionalFee || "0"),
           reason: rescheduleReason,
           suggestion: selectedSuggestion,
-          noShowPax: noShowCount,
+          ...getNoShowPayload(),
         });
       }
     }
@@ -189,15 +260,23 @@ export default function NoShowModal({
       setModalType("reschedule");
       return;
     }
-    // กลับจากหน้า Reschedule/Refund มาที่หน้า Condition
+    // Back from Reschedule/Refund to Condition
     setModalType("condition");
     setSelectedCondition("");
   };
 
   const handleConditionBack = () => {
-    // ย้อนกลับจากหน้า Condition ให้ปิดโมดัลไปเลย (ไม่มีหน้าจอเลือกจำนวนแล้ว)
-    setSelectedCondition("");
-    onClose();
+    if (showStep1SelectUnit) {
+      setSelectedCondition("");
+      setModalType("unitBreakdown");
+    } else {
+      setSelectedCondition("");
+      onClose();
+    }
+  };
+
+  const handleUnitBreakdownNext = () => {
+    if (isUnitBreakdownValid) setModalType("condition");
   };
 
   const handleLater = () => {
@@ -207,16 +286,16 @@ export default function NoShowModal({
 
   if (!isOpen) return null;
 
-  const isSelectOrCondition = modalType === "select" || modalType === "condition";
+  const isSelectOrCondition = modalType === "select" || modalType === "condition" || modalType === "unitBreakdown";
   const isRescheduleOrRefund = modalType === "reschedule" || modalType === "refund" || modalType === "rescheduleWarning";
   const useCompactHeader = isSelectOrCondition || (modalType === "refund");
   const modalWidthClass =
-    modalType === "select" ? "max-w-[464px]" : modalType === "condition" || isRescheduleOrRefund ? "max-w-[548px] max-h-[90vh]" : "max-w-2xl max-h-[90vh] overflow-y-auto";
+    modalType === "select" ? "max-w-[464px]" : modalType === "unitBreakdown" || modalType === "condition" || isRescheduleOrRefund ? "max-w-[548px] max-h-[90vh]" : "max-w-2xl max-h-[90vh] overflow-y-auto";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className={`bg-white rounded-2xl shadow-[0px_3px_4px_0px_rgba(0,0,0,0.08)] w-full mx-4 flex flex-col overflow-hidden ${modalWidthClass}`}>
-        {/* Part 1: Header — fixed (Reschedule และ Refund ใช้บล็อกแยก, อื่นใช้หัวเดิม) */}
+        {/* Part 1: Header — fixed (Reschedule and Refund use separate block, others use default) */}
         {modalType === "reschedule" || modalType === "refund" ? (
           <div className="shrink-0 self-stretch pl-12 pr-6 pt-6 pb-3 bg-white inline-flex justify-center items-start gap-2.5">
             <div className="flex-1 inline-flex flex-col justify-start items-center gap-3">
@@ -227,7 +306,7 @@ export default function NoShowModal({
               </div>
               <div className="w-52 h-0 outline outline-4 outline-offset-[-2px] outline-blue-300" />
             </div>
-            <button type="button" onClick={onClose} className="size-6 relative overflow-hidden flex items-center justify-center rounded hover:bg-gray-100" aria-label="ปิด">
+            <button type="button" onClick={onClose} className="size-6 relative overflow-hidden flex items-center justify-center rounded hover:bg-gray-100" aria-label="Close">
               <span className="size-3 outline outline-[1.67px] outline-offset-[-0.83px] outline-zinc-800" />
             </button>
           </div>
@@ -238,7 +317,7 @@ export default function NoShowModal({
                 <div className="text-center justify-start text-zinc-800 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Reschedule</div>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="size-6 relative overflow-hidden flex items-center justify-center rounded hover:bg-gray-100" aria-label="ปิด">
+            <button type="button" onClick={onClose} className="size-6 relative overflow-hidden flex items-center justify-center rounded hover:bg-gray-100" aria-label="Close">
               <span className="size-3 outline outline-[1.67px] outline-offset-[-0.83px] outline-zinc-800" />
             </button>
           </div>
@@ -249,18 +328,18 @@ export default function NoShowModal({
           }`}>
             <div className="flex-1 flex flex-col justify-start items-center gap-3">
               <h2 className={`self-stretch text-center font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight ${useCompactHeader ? "text-zinc-800 text-lg" : "text-xl text-gray-900"}`}>
-                {modalType === "select" ? "No show" : modalType === "condition" ? "Select No-show Condition" : ""}
+                {modalType === "select" ? "No show" : modalType === "unitBreakdown" ? "Select Unit For Check-In" : modalType === "condition" ? "Select No-show Condition" : ""}
               </h2>
             </div>
-            <button type="button" onClick={onClose} className={useCompactHeader ? "size-6 flex items-center justify-center overflow-hidden rounded hover:bg-gray-100" : "p-2 hover:bg-gray-100 rounded-lg transition-colors"} aria-label="ปิด">
+            <button type="button" onClick={onClose} className={useCompactHeader ? "size-6 flex items-center justify-center overflow-hidden rounded hover:bg-gray-100" : "p-2 hover:bg-gray-100 rounded-lg transition-colors"} aria-label="Close">
               <span className="size-3 rounded-sm outline outline-[1.67px] outline-offset-[-0.83px] outline-zinc-800" />
             </button>
           </div>
         )}
 
-        {/* Part 2: Content — scroll ได้เมื่อยาว, ส่วน 1 กับ 3 fixed */}
+        {/* Part 2: Content — scrollable when long, parts 1 and 3 fixed */}
         <div className={
-          modalType === "select" || modalType === "condition"
+          modalType === "select" || modalType === "unitBreakdown" || modalType === "condition"
             ? "p-6 flex flex-col justify-start items-start gap-6 overflow-y-auto min-h-0 flex-1"
             : modalType === "reschedule"
             ? "flex-1 min-h-0 overflow-y-auto flex flex-col"
@@ -337,12 +416,70 @@ export default function NoShowModal({
                 </div>
               </div>
             </>
+          ) : modalType === "unitBreakdown" ? (
+            <>
+              <div className="self-stretch inline-flex justify-start items-center gap-3">
+                <span className="size-6 flex items-center justify-center text-[#265ED6] shrink-0" role="img" aria-label="Information">
+                  <InformationCircleIcon className="size-6" />
+                </span>
+                <div className="text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
+                  Please select {checkInPaxTotal} Pax to check in.
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full max-w-[500px]">
+                {unitsWithQty.map((unit) => {
+                  const value = checkInByUnit[unit.type] ?? 0;
+                  const otherSum = checkInByUnitSum - value;
+                  const maxThisUnit = Math.min(unit.quantity, checkInPaxTotal - otherSum);
+                  const setValue = (n: number) => {
+                    const next = Math.max(0, Math.min(maxThisUnit, n));
+                    setCheckInByUnit((prev) => ({ ...prev, [unit.type]: next }));
+                  };
+                  return (
+                    <div
+                      key={unit.type}
+                      className="flex items-center justify-between gap-4 py-2 px-4 bg-[#f8f8f8] rounded-lg"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 truncate">{unit.type}</span>
+                        <span className="text-[#848484] text-sm font-['IBM_Plex_Sans_Thai'] leading-5">
+                          ฿{unit.price.toLocaleString()} per pax · Total: {unit.quantity} pax
+                        </span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setValue(value - 1)}
+                          disabled={value <= 0}
+                          className="size-7 p-1 rounded-full outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center disabled:opacity-50 disabled:outline-zinc-300"
+                          aria-label={`Decrease check-in ${unit.type}`}
+                        >
+                          <MinusIcon className="size-4 text-[#265ED6]" />
+                        </button>
+                        <span className="w-12 py-1 text-center text-[#2A2A2A] text-base font-semibold font-['IBM_Plex_Sans_Thai'] tabular-nums">
+                          {value}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setValue(value + 1)}
+                          disabled={value >= unit.quantity || checkInByUnitSum >= checkInPaxTotal}
+                          className="size-7 p-1 rounded-full outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center disabled:opacity-50 disabled:outline-zinc-300"
+                          aria-label={`Increase check-in ${unit.type}`}
+                        >
+                          <PlusIcon className="size-4 text-[#265ED6]" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : modalType === "condition" ? (
             <>
               <div className="self-stretch inline-flex justify-start items-center gap-3">
-                <button type="button" onClick={handleConditionBack} className="size-6 flex items-center justify-center text-[#265ED6] hover:bg-blue-50/50 rounded">
-                  <ChevronRightIcon className="size-5" style={{ transform: "rotate(180deg)" }} />
-                </button>
+                <span className="size-6 flex items-center justify-center text-[#265ED6] shrink-0" role="img" aria-label="Information">
+                  <InformationCircleIcon className="size-6" />
+                </span>
                 <div className="text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
                   Checked in {bookingQuantity - noShowCount} Pax from {bookingQuantity} Pax (No-show {noShowCount} Pax)
                 </div>
@@ -433,7 +570,7 @@ export default function NoShowModal({
             </>
           ) : modalType === "refund" ? (
             <div className="self-stretch p-6 flex flex-col justify-start items-start gap-6">
-              {/* Original Booking — ตรง Figma */}
+              {/* Original Booking */}
               <div className="self-stretch px-6 py-3 bg-slate-50 rounded-[10px] flex flex-col justify-start items-start overflow-hidden">
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
                   <div className="justify-start text-stone-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">Original Booking</div>
@@ -463,7 +600,32 @@ export default function NoShowModal({
                 </div>
               </div>
 
-              {/* Refund Amount — card สีน้ำเงินอ่อน */}
+              {/* No-show by unit */}
+              {unitsWithQty.some((u) => (noShowByUnit[u.type] ?? 0) > 0) && (
+                <div className="self-stretch flex flex-col justify-start items-start gap-2">
+                  <div className="text-[#2A2A2A] text-[14px] font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">No-show by unit</div>
+                  <div className="self-stretch flex flex-col gap-2">
+                    {unitsWithQty
+                      .filter((u) => (noShowByUnit[u.type] ?? 0) > 0)
+                      .map((u) => (
+                        <div
+                          key={u.type}
+                          className="self-stretch px-4 py-3 bg-[#F8F8F8] rounded-[10px] flex items-center justify-between gap-4"
+                        >
+                          <div className="flex flex-col justify-start items-start gap-1">
+                            <div className="text-[#2A2A2A] text-base font-semibold font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{u.type}</div>
+                            <div className="text-[#848484] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-5">฿{u.price.toLocaleString()} per pax</div>
+                          </div>
+                          <div className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                            {noShowByUnit[u.type] ?? 0} pax
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Refund Amount — light blue card */}
               <div className="self-stretch px-6 py-4 bg-blue-50 rounded-[10px] flex justify-between items-center">
                 <div className="text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Refund Amount</div>
                 <div className="text-right">
@@ -476,7 +638,7 @@ export default function NoShowModal({
                 </div>
               </div>
 
-              {/* Reason — dropdown แบบ Figma, ถ้าเลือก Other Reason จะแสดง input เพิ่ม */}
+              {/* Reason — dropdown; Other Reason shows extra input */}
               <div className="w-[508px] flex flex-col justify-start items-start gap-1 relative" data-reason-dropdown>
                 <div className="text-zinc-800 text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">
                   Reason <span className="text-red-500">*</span>
@@ -577,7 +739,7 @@ export default function NoShowModal({
                   )}
                 </div>
                 
-                {/* Other Reason Input — แสดงเมื่อเลือก Other Reason */}
+                {/* Other Reason Input — shown when Other Reason selected */}
                 {refundReason === "other_reason" && (
                   <div className="w-full flex flex-col justify-start items-start gap-1 mt-2">
                     <input
@@ -603,11 +765,11 @@ export default function NoShowModal({
                 />
               </div>
 
-              {/* Upload Photos — ตรง Figma ตาม inline style ที่ให้มา */}
+              {/* Upload Photos */}
               <div className="self-stretch inline-flex flex-col justify-start items-start gap-2">
                 <div className="text-zinc-800 text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Upload Photos</div>
                 <div className="w-full max-w-[508px] px-[15px] py-[7px] bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#D9D9D9] flex flex-col justify-center items-start gap-[10px]">
-                  {/* Header: "Upload photos here" + ปุ่ม X */}
+                  {/* Header: "Upload photos here" + clear button */}
                   <div className="self-stretch inline-flex justify-start items-center gap-[10px]">
                     <div className="flex-1 flex justify-center flex-col text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
                       Upload photos here
@@ -617,7 +779,7 @@ export default function NoShowModal({
                         type="button"
                         onClick={() => setRefundPhotos([])}
                         className="size-6 relative overflow-hidden flex items-center justify-center hover:bg-zinc-100 rounded transition-colors"
-                        aria-label="ลบรูปทั้งหมด"
+                        aria-label="Remove all photos"
                       >
                         <span className="size-3 outline outline-[1.67px] outline-offset-[-0.83px] outline-zinc-800" />
                       </button>
@@ -663,7 +825,7 @@ export default function NoShowModal({
               </div>
             </div>
           ) : modalType === "rescheduleWarning" ? (
-            /* Reschedule Warning — แสดงข้อความเตือนก่อน Reschedule */
+            /* Reschedule Warning — warning before Reschedule */
             <div className="self-stretch flex flex-col justify-center items-center gap-6">
               <div className="self-stretch flex flex-col justify-center items-center gap-4">
                 {/* Icon Warning */}
@@ -688,13 +850,13 @@ export default function NoShowModal({
                     Warning
                   </div>
                   <div className="text-center text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em] max-w-md">
-                    Booking นี้จะถูก Reschedule ไปยังทริปอื่นแล้ว
+                    This booking will be rescheduled to another trip.
                     <br />
-                    <span className="font-medium">กรุณาลบ Booking นี้ออกจากการ Check In</span> เพราะย้ายไปทริปอื่นแล้ว
+                    <span className="font-medium">Please remove this booking from Check-in</span> as it has been moved to another trip.
                   </div>
                   <div className="mt-2 px-4 py-2 bg-blue-50 rounded-lg border border-blue-200">
                     <div className="text-center text-blue-700 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-5">
-                      <div className="font-medium mb-1">รายละเอียดการ Reschedule:</div>
+                      <div className="font-medium mb-1">Reschedule details:</div>
                       <div>Travel Date: {rescheduleTravelDate}</div>
                       <div>Trip Round: {rescheduleTripRound.replace(":", " : ")}</div>
                       {selectedSuggestion && <div>Trip Code: {selectedSuggestion}</div>}
@@ -704,9 +866,9 @@ export default function NoShowModal({
               </div>
             </div>
           ) : (
-            /* Reschedule — ตรง Figma: Original Booking 2 แถว, inputs zinc-300, Suggestion blue-700, Summary slate-800, footer stone-50 */
+            /* Reschedule — Original Booking 2 rows, inputs zinc-300, Suggestion blue-700, Summary slate-800 */
             <div className="self-stretch p-6 flex flex-col justify-start items-start gap-6">
-              {/* Original Booking — แถว1: Booking No. | Travel date | Trip Round, แถว2: No-show | Price */}
+              {/* Original Booking — row1: Booking No. | Travel date | Trip Round, row2: No-show | Price */}
               <div className="self-stretch px-6 py-3 bg-[#F8FCFF] rounded-[10px] flex flex-col justify-start items-start overflow-hidden">
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
                   <div className="justify-start text-stone-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">Original Booking</div>
@@ -737,7 +899,32 @@ export default function NoShowModal({
                 </div>
               </div>
 
-              {/* Travel Date & Trip Round — แถวเดียวกัน, ขอบ zinc-300, ไอคอนในช่อง */}
+              {/* No-show by unit */}
+              {unitsWithQty.some((u) => (noShowByUnit[u.type] ?? 0) > 0) && (
+                <div className="self-stretch flex flex-col justify-start items-start gap-2">
+                  <div className="text-[#2A2A2A] text-[14px] font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">No-show by unit</div>
+                  <div className="self-stretch flex flex-col gap-2">
+                    {unitsWithQty
+                      .filter((u) => (noShowByUnit[u.type] ?? 0) > 0)
+                      .map((u) => (
+                        <div
+                          key={u.type}
+                          className="self-stretch px-4 py-3 bg-[#F8F8F8] rounded-[10px] flex items-center justify-between gap-4"
+                        >
+                          <div className="flex flex-col justify-start items-start gap-1">
+                            <div className="text-[#2A2A2A] text-base font-semibold font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{u.type}</div>
+                            <div className="text-[#848484] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-5">฿{u.price.toLocaleString()} per pax</div>
+                          </div>
+                          <div className="text-[#2A2A2A] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                            {noShowByUnit[u.type] ?? 0} pax
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Travel Date & Trip Round — same row, zinc-300 border, icons in fields */}
               <div className="self-stretch flex flex-col justify-start items-start gap-3">
                 <div className="self-stretch inline-flex justify-start items-start gap-6 flex-nowrap">
                   <div className="w-60 shrink-0 inline-flex flex-col justify-center items-start gap-1">
@@ -780,7 +967,7 @@ export default function NoShowModal({
                   </div>
                 </div>
 
-                {/* Suggestion — หัวข้อ blue-700, กรอบ outline-zinc-300, Pax ไอคอนน้ำเงิน + pill stone-50 */}
+                {/* Suggestion — blue-700 heading, outline-zinc-300, Pax icon blue + stone-50 pill */}
                 <div className="w-full max-w-[500px] p-6 bg-white rounded-[10px] outline outline-1 outline-offset-[-1px] outline-zinc-300 flex flex-col justify-start items-start gap-6 overflow-hidden">
                   <div className="justify-start text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Suggestion</div>
                   <div className="self-stretch flex flex-col justify-start items-start gap-3">
@@ -845,7 +1032,7 @@ export default function NoShowModal({
                         ))
                       ) : (
                         <div className="self-stretch py-4 text-center text-zinc-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                          {rescheduleTripRound ? "ไม่พบ suggestion สำหรับรอบนี้" : "กรุณาเลือก Trip Round เพื่อดู suggestion"}
+                          {rescheduleTripRound ? "No suggestions found for this round" : "Please select Trip Round to see suggestions"}
                         </div>
                       )}
                     </div>
@@ -853,7 +1040,7 @@ export default function NoShowModal({
                 </div>
               </div>
 
-              {/* Additional fee — placeholder ฿ 0.00, zinc-400 */}
+              {/* Additional fee — placeholder ฿ 0.00 */}
               <div className="self-stretch inline-flex justify-start items-start gap-6">
                 <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
                   <div className="text-zinc-800 text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Additional fee</div>
@@ -881,7 +1068,7 @@ export default function NoShowModal({
                 </div>
               </div>
 
-              {/* Summary — bg-slate-800, เส้นแบ่งขาวบางๆ */}
+              {/* Summary — bg-slate-800, thin white dividers */}
               <div className="self-stretch px-6 py-3 bg-slate-800 rounded-[10px] flex flex-col justify-start items-start overflow-hidden">
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
                   <div className="justify-start text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Summary</div>
@@ -914,12 +1101,32 @@ export default function NoShowModal({
           )}
         </div>
 
-        {/* Footer — ไม่เลื่อน */}
+        {/* Footer — fixed */}
         <div className={
           "shrink-0 self-stretch p-6 overflow-hidden flex items-center gap-2.5 " +
-          (modalType === "select" || modalType === "condition" ? "justify-between bg-[#F8F8F8]" : modalType === "rescheduleWarning" ? "justify-start bg-stone-50 gap-2" : isRescheduleOrRefund ? "justify-end bg-stone-50" : "justify-end border-t border-gray-200 bg-gray-50")
+          (modalType === "select" || modalType === "unitBreakdown" || modalType === "condition" ? "justify-between bg-[#F8F8F8]" : modalType === "rescheduleWarning" ? "justify-start bg-stone-50 gap-2" : isRescheduleOrRefund ? "justify-end bg-stone-50" : "justify-end border-t border-gray-200 bg-gray-50")
         }>
-          {modalType === "select" ? (
+          {modalType === "unitBreakdown" ? (
+            <div className="flex-1 flex justify-end items-center gap-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+              >
+                <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Cancel</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleUnitBreakdownNext}
+                disabled={!isUnitBreakdownValid}
+                className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 transition-opacity ${
+                  isUnitBreakdownValid ? "bg-[#265ED6] text-white hover:opacity-90" : "bg-[#E7E7E9] text-white cursor-not-allowed"
+                }`}
+              >
+                <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Continue</span>
+              </button>
+            </div>
+          ) : modalType === "select" ? (
             <div className="flex-1 flex justify-end items-center gap-4">
               <button
                 type="button"
@@ -931,7 +1138,7 @@ export default function NoShowModal({
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="px-5 py-2 bg-[#FF3B3B] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                className="px-5 py-2 bg-[#265ED6] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
               >
                 <span className="text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Confirm</span>
               </button>
@@ -942,32 +1149,34 @@ export default function NoShowModal({
                 <div className="flex justify-end items-center gap-4">
                   <button
                     type="button"
-                    onClick={handleLater}
-                    className="px-5 py-2 bg-[#E3F1FF] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
+                    onClick={showStep1SelectUnit ? handleConditionBack : onClose}
+                    className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
                   >
-                    <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Later</span>
+                    <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">
+                      {showStep1SelectUnit ? "Back" : "Cancel"}
+                    </span>
                   </button>
                 </div>
               )}
               <div className="flex-1 flex justify-end items-center gap-4">
                 <button
                   type="button"
-                  onClick={onClose}
-                  className="px-5 py-2 bg-white rounded-[100px] outline outline-1 outline-offset-[-1px] outline-[#265ED6] flex justify-center items-center gap-2 hover:bg-blue-50/50 transition-colors"
+                  onClick={handleLater}
+                  className="px-5 py-2 bg-[#E3F1FF] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-90 transition-opacity"
                 >
-                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Cancel</span>
+                  <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Later</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirm}
-                  disabled={!selectedCondition}
+                  disabled={!selectedCondition || !isUnitBreakdownValid}
                   className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 transition-opacity ${
-                    selectedCondition
+                    selectedCondition && isUnitBreakdownValid
                       ? "bg-[#265ED6] text-white hover:opacity-90"
                       : "bg-[#E7E7E9] text-white cursor-not-allowed"
                   }`}
                 >
-                  <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Confirm</span>
+                  <span className="text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-[0.02em]">Continue</span>
                 </button>
               </div>
             </>
@@ -994,7 +1203,7 @@ export default function NoShowModal({
             </div>
           ) : (
             <div className="flex-1 flex justify-between items-center gap-2.5">
-              {/* Back button มุมซ้ายล่าง ย้อนกลับไปหน้าก่อนหน้า */}
+              {/* Back button bottom-left — back to previous step */}
               <div className="flex justify-start items-center gap-4">
                 <button
                   type="button"
@@ -1006,7 +1215,7 @@ export default function NoShowModal({
                   </span>
                 </button>
               </div>
-              {/* กลุ่มปุ่ม Cancel + Confirm มุมขวาล่าง */}
+              {/* Cancel + Confirm buttons bottom-right */}
               <div className="flex justify-end items-center gap-4">
                 <button
                   type="button"
@@ -1028,10 +1237,10 @@ export default function NoShowModal({
                   className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 ${
                     modalType === "refund"
                       ? refundReason && (refundReason !== "other_reason" || refundOtherReason.trim())
-                        ? "bg-blue-700 text-white hover:opacity-90"
+                        ? "bg-[#265ED6] text-white hover:opacity-90"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : rescheduleTravelDate && rescheduleTripRound
-                      ? "bg-blue-700 text-white hover:opacity-90"
+                      ? "bg-[#265ED6] text-white hover:opacity-90"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 >

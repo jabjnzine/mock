@@ -229,6 +229,15 @@ export default function CheckInViewPage() {
       status: "Pending",
       remark: "",
     },
+    EC25DM35: {
+      travelDate: "17/12/2025",
+      tripRound: "08:00",
+      program: "Damnoen + Buffalo Cafe + Maeklong",
+      totalPax: 35,
+      checkedInPax: 15,
+      status: "Pending",
+      remark: "",
+    },
     EC255D2C: {
       travelDate: "17/12/2025",
       tripRound: "00:00",
@@ -300,6 +309,16 @@ export default function CheckInViewPage() {
       { id: "5", bookingNo: bookingNo("0810"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B2", phone: "082-2222223", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
       { id: "6", bookingNo: bookingNo("0825"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B3", phone: "082-2222224", pax: 2, checkIn: 2, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
       { id: "7", bookingNo: bookingNo("0840"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Single Guest", phone: "083-3333333", pax: 1, checkIn: 0, noShow: 1, language: "EN", status: "waitingReason", remark: "-" },
+    ],
+    EC25DM35: [
+      { id: "1", bookingNo: bookingNo("0800"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 1", phone: "081-1001001", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:55", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0810"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 2", phone: "081-1001002", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+      { id: "3", bookingNo: bookingNo("0820"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 3", phone: "081-1001003", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:05", remark: "-" },
+      { id: "4", bookingNo: bookingNo("0830"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 4", phone: "081-1001004", pax: 5, checkIn: 0, noShow: 5, language: "EN", status: "noShow", remark: "-", noShowCondition: "No-show Full Charge" },
+      { id: "5", bookingNo: bookingNo("0840"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 5", phone: "081-1001005", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "6", bookingNo: bookingNo("0850"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 6", phone: "081-1001006", pax: 4, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "7", bookingNo: bookingNo("0900"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 7", phone: "081-1001007", pax: 4, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "8", bookingNo: bookingNo("0910"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 8", phone: "081-1001008", pax: 4, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
     ],
     EC255D2C: [
       { id: "1", bookingNo: bookingNo("0805"), program: programByCode("EC255D2C"), option: "Full Day Tour", customerName: "Party A1", phone: "084-4444444", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
@@ -809,7 +828,7 @@ export default function CheckInViewPage() {
                         (() => {
                           const items = tripCode === "EC255D2C"
                             ? ITINERARY_EC255D2C_TH
-                            : tripCode === "EC2581C4"
+                            : tripCode === "EC2581C4" || tripCode === "EC25DM35"
                               ? (itineraryLang === "en" ? ITINERARY_EC2581C4_ENG : ITINERARY_EC2581C4_TH)
                               : (itineraryLang === "en" ? ITINERARY_ITEMS_ENG : ITINERARY_ITEMS);
                           return items.map((item, index) => {
@@ -1316,6 +1335,25 @@ export default function CheckInViewPage() {
 
       {selectedBooking && (() => {
         const bookingForModal = bookingStates.find((b) => b.id === selectedBooking.id) ?? selectedBooking;
+        const pax = bookingForModal.pax;
+        const isDamnoenProgram = code === "EC25DM35" || code === "EC2581C4";
+        const damnoenUnits =
+          isDamnoenProgram && pax >= 1
+            ? (() => {
+                const seed = (bookingForModal.id + bookingForModal.bookingNo).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+                const maxInfant = Math.min(2, Math.max(0, pax - 2));
+                const infantQty = maxInfant <= 0 ? 0 : (seed % (maxInfant + 1));
+                const remaining = pax - infantQty;
+                const adultQty =
+                  remaining <= 1 ? remaining : Math.max(1, (seed % (remaining - 1)) + 1);
+                const childQty = remaining - adultQty;
+                return [
+                  { type: "Adult", price: 1500, quantity: adultQty },
+                  { type: "Child", price: 1200, quantity: childQty },
+                  { type: "Infant", price: 0, quantity: infantQty },
+                ].filter((u) => u.quantity > 0);
+              })()
+            : undefined;
         return (
           <NoShowModal
             isOpen={showNoShowModal}
@@ -1346,6 +1384,7 @@ export default function CheckInViewPage() {
             tripRound={tripData.tripRound}
             customerName={bookingForModal.customerName}
             pricePerPax={1500}
+            units={damnoenUnits}
             hideLaterButton={noShowModalFromAddCondition}
             onConfirm={(condition, data) => {
               const payload = data && typeof data === "object" ? data as { noShowPax?: number; condition?: string; [k: string]: unknown } : {};

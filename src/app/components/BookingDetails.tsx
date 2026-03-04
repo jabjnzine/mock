@@ -29,6 +29,8 @@ interface BookingDetailsProps {
   bookingId: string;
   onCancel: () => void;
   onCheckIn: (checkInPax: number) => void;
+  /** "excursion" = Trip Code + Vehicle/Personnel/Guide เดี่ยว (Check-in > Excursion > Check In) */
+  tripDetailsVariant?: "excursion" | "transport";
 }
 
 interface BookingData {
@@ -48,6 +50,7 @@ interface BookingData {
   vehiclePlate: string;
   captain: { name: string; phone: string };
   assistant: { name: string; phone: string };
+  assistant2?: { name: string; phone: string };
   guide1: { name: string; phone: string };
   guide2: { name: string; phone: string };
   pickUpVehicle: string;
@@ -104,10 +107,78 @@ function CellWithTooltip({ children, className = "" }: { children: string; class
   );
 }
 
+const DEFAULT_BOOKING_DATA: BookingData = {
+  bookingNo: "TQC417792",
+  title: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+  seller: "Klook",
+  travelDate: "17/12/2025",
+  payment: "Pending",
+  option: "Day Trip with Shared Transfer excluding Natio...",
+  tripRound: "07:30",
+  tripType: "Join In",
+  language: "EN",
+  tripCode: "EC25Z1PW",
+  transportCodePickUp: "TF25A956",
+  transportCodeDropOff: "TF25A957",
+  vehicleDetail: "Speed Catamaran 2 engines (30)",
+  vehiclePlate: "โลมาใจดี NO1",
+  captain: { name: "Capt. Trunk", phone: "096-6502747" },
+  assistant: { name: "Jane Cooper", phone: "0684 555-0102" },
+  assistant2: { name: "Savannah Nguyen", phone: "(629) 555-0129" },
+  guide1: { name: "G. Peter", phone: "094-4313995" },
+  guide2: { name: "G. ter", phone: "095-4313995" },
+  pickUpVehicle: "VAN-Phuket - VAN (10)",
+  pickUpDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
+  pickUpGuide1: { name: "G. Peter", phone: "094-4313995" },
+  pickUpGuide2: { name: "G. ter", phone: "095-4313995" },
+  dropOffVehicle: "VAN-Phuket - VAN (10)",
+  dropOffDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
+  dropOffGuide1: { name: "G. Peter", phone: "094-4313995" },
+  dropOffGuide2: { name: "G. ter", phone: "095-4313995" },
+  customerName: "Zakenya Crawford",
+  nationality: "-",
+  email: "jmmlbc64j3cvnh@reply.getyourguide.com",
+  phone: "+14042349390",
+  contactMethod: "We Chat",
+  units: [
+    { type: "Person", price: 1500, quantity: 5, kb: 0, total: 7500 },
+    { type: "Infant (Default)", price: 0, quantity: 0, kb: 0, total: 0 },
+  ],
+  meetingPoint: "-",
+  pickUpLocation:
+    "Hilltop Wellness Resort Phuket, 138 Soi Si Suchat View, Ratsada, Mueang Phuket District, Phuket 83000, Thailand",
+  pickUpAddress: "-",
+  dropOffPoint: "-",
+  dropOffRemark: "-",
+  bookingQuantity: 5,
+};
+
+const TS0003_BOOKING_DATA: BookingData = {
+  ...DEFAULT_BOOKING_DATA,
+  bookingNo: "TS0003",
+  title: "Damnoen + Buffalo Cafe + Maeklong",
+  tripRound: "08:00",
+  tripCode: "EC25DM35",
+  transportCodePickUp: "EC25DM35",
+  transportCodeDropOff: "EC25DM35",
+  vehicleDetail: "Bus (35)",
+  pickUpVehicle: "Bus (35)",
+  dropOffVehicle: "Bus (35)",
+  option: "Day Trip",
+  customerName: "Damnoen Guest",
+  units: [
+    { type: "Adult", price: 1500, quantity: 2, kb: 0, total: 3000 },
+    { type: "Child", price: 1200, quantity: 2, kb: 0, total: 2400 },
+    { type: "Infant", price: 0, quantity: 1, kb: 0, total: 0 },
+  ],
+  bookingQuantity: 5,
+};
+
 export default function BookingDetails({
   bookingId,
   onCancel,
   onCheckIn,
+  tripDetailsVariant = "transport",
 }: BookingDetailsProps) {
   const [expandedSections, setExpandedSections] = useState({
     bookingDetails: true,
@@ -117,50 +188,8 @@ export default function BookingDetails({
     locationDetails: true,
   });
 
-  const bookingData: BookingData = {
-    bookingNo: "TQC417792",
-    title: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
-    seller: "Klook",
-    travelDate: "17/12/2025",
-    payment: "Pending",
-    option: "Day Trip with Shared Transfer excluding Natio...",
-    tripRound: "07:30",
-    tripType: "Join In",
-    language: "EN",
-    tripCode: "TF25A956",
-    transportCodePickUp: "TF25A956",
-    transportCodeDropOff: "TF25A957",
-    vehicleDetail: "Speed Catamaran 2 engines: 30",
-    vehiclePlate: "ฮต4321",
-    captain: { name: "Capt. Trunk", phone: "096-6502747" },
-    assistant: { name: "Jane Cooper", phone: "0684 555-0102" },
-    guide1: { name: "G. Peter", phone: "094-4313995" },
-    guide2: { name: "G. ter", phone: "095-4313995" },
-    pickUpVehicle: "VAN-Phuket - VAN (10)",
-    pickUpDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
-    pickUpGuide1: { name: "G. Peter", phone: "094-4313995" },
-    pickUpGuide2: { name: "G. ter", phone: "095-4313995" },
-    dropOffVehicle: "VAN-Phuket - VAN (10)",
-    dropOffDriver: { name: "Anan Chaiyaporn", phone: "081-764-3390" },
-    dropOffGuide1: { name: "G. Peter", phone: "094-4313995" },
-    dropOffGuide2: { name: "G. ter", phone: "095-4313995" },
-    customerName: "Zakenya Crawford",
-    nationality: "-",
-    email: "jmmlbc64j3cvnh@reply.getyourguide.com",
-    phone: "+14042349390",
-    contactMethod: "We Chat",
-    units: [
-      { type: "Infant (Default)", price: 0, quantity: 0, kb: 0, total: 0 },
-      { type: "Adult", price: 1500, quantity: 5, kb: 0, total: 7500 },
-    ],
-    meetingPoint: "-",
-    pickUpLocation:
-      "Hilltop Wellness Resort Phuket, 138 Soi Si Suchat View, Ratsada, Mueang Phuket District, Phuket 83000, Thailand",
-    pickUpAddress: "-",
-    dropOffPoint: "-",
-    dropOffRemark: "-",
-    bookingQuantity: 5,
-  };
+  const bookingData: BookingData =
+    bookingId === "TS0003" ? TS0003_BOOKING_DATA : DEFAULT_BOOKING_DATA;
 
   const [checkInPax, setCheckInPax] = useState(bookingData.bookingQuantity);
   const [showNoShowModal, setShowNoShowModal] = useState(false);
@@ -175,7 +204,7 @@ export default function BookingDetails({
   const noShowPax = bookingData.bookingQuantity - checkInPax;
 
   const handleDecrease = () => {
-    if (checkInPax > 1) {
+    if (checkInPax > 0) {
       setCheckInPax(checkInPax - 1);
     }
   };
@@ -398,27 +427,118 @@ export default function BookingDetails({
         )}
       </div>
 
-      {/* Transport Details — ตาม reference (Pick-Up / Drop-off) */}
-      <div className="self-stretch p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
+      {/* Trip Details — โครงสร้างตาม reference (outline, Trip Details + Chevron, Excursion Details + content card) */}
+      <div className="self-stretch p-6 bg-white rounded-2xl outline outline-1 outline-offset-[-1px] outline-[#d9d9d9] inline-flex flex-col justify-start items-start gap-4">
         <button
           onClick={() => toggleSection("tripDetails")}
           className="self-stretch inline-flex justify-start items-center gap-2"
         >
-          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center">
+          <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center gap-2.5">
             <TruckIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
           </div>
           <div className="flex-1 text-left text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-            Transport Details
+            Trip Details
           </div>
           {expandedSections.tripDetails ? (
-            <ChevronUpIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
+            <ChevronUpIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} />
           ) : (
-            <ChevronDownIcon className="w-6 h-6 text-[#2a2a2a]" strokeWidth={1.5} />
+            <ChevronDownIcon className="w-6 h-6 text-[#292d32]" strokeWidth={1.5} style={{ transform: "rotate(180deg)" }} />
           )}
         </button>
-        {expandedSections.tripDetails && (
-          <div className="self-stretch inline-flex justify-start items-start gap-6 flex-wrap">
-            {/* Pick - Up */}
+        {expandedSections.tripDetails && tripDetailsVariant === "excursion" && (
+          <>
+            <div className="self-stretch inline-flex justify-start items-center gap-3">
+              <div className="w-1 h-6 bg-[#265ed6] rounded-[100px]" />
+              <div className="justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Excursion Details</div>
+            </div>
+            <div className="self-stretch rounded-2xl outline outline-1 outline-offset-[-1px] outline-[#e5e5e5] flex flex-col justify-center items-start overflow-hidden">
+              <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6">
+                <div className="bg-white rounded-lg outline outline-1 outline-offset-[-1px] outline-[#265ed6] inline-flex flex-col justify-start items-start">
+                  <div className="px-4 py-2 flex flex-col justify-center items-center gap-4">
+                    <div className="self-stretch inline-flex justify-center items-center gap-2">
+                      <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">Trip Code :</div>
+                      <div className="flex justify-start items-start gap-1">
+                        <div className="justify-start text-[#265ed6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6 tracking-tight line-clamp-1">{bookingData.tripCode}</div>
+                      </div>
+                      <button type="button" onClick={() => copyToClipboard(bookingData.tripCode)} className="p-0.5" aria-label="คัดลอก">
+                        <ClipboardDocumentIcon className="w-6 h-6 text-[#265ed6]" strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="self-stretch p-6 flex flex-col justify-center items-start gap-6">
+                <div className="self-stretch inline-flex justify-start items-start gap-2">
+                  <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Vehicle Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2 min-w-0">
+                    <div className="inline-flex justify-start items-center gap-2">
+                      <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehicleDetail}</div>
+                    </div>
+                    <div className="self-stretch justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                  </div>
+                </div>
+                <div className="self-stretch inline-flex justify-start items-start gap-2">
+                  <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Personnel Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
+                    <div className="inline-flex justify-end items-center gap-2">
+                      <div className="flex justify-start items-center gap-2">
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain :</div>
+                      </div>
+                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.name}</div>
+                      <a href={`tel:${bookingData.captain.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.phone}</a>
+                    </div>
+                    <div className="inline-flex justify-end items-center gap-2">
+                      <div className="flex justify-start items-center gap-2">
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 1 :</div>
+                      </div>
+                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.name}</div>
+                      <a href={`tel:${bookingData.assistant.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.phone}</a>
+                    </div>
+                    {bookingData.assistant2 && (
+                      <div className="inline-flex justify-end items-center gap-2">
+                        <div className="flex justify-start items-center gap-2">
+                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 2 :</div>
+                        </div>
+                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant2.name}</div>
+                        <a href={`tel:${bookingData.assistant2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant2.phone}</a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="self-stretch inline-flex justify-start items-start gap-2">
+                  <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                  <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Guide Detail</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
+                    <div className="inline-flex justify-end items-center gap-2">
+                      <div className="flex justify-start items-center gap-2">
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 1 :</div>
+                      </div>
+                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.name}</div>
+                      <a href={`tel:${bookingData.guide1.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.phone}</a>
+                    </div>
+                    <div className="inline-flex justify-end items-center gap-2">
+                      <div className="flex justify-start items-center gap-2">
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 2 :</div>
+                      </div>
+                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.name}</div>
+                      <a href={`tel:${bookingData.guide2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.phone}</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {expandedSections.tripDetails && tripDetailsVariant === "transport" && (
+          <>
+            <div className="self-stretch inline-flex justify-start items-center gap-3">
+              <div className="w-1 h-6 bg-[#265ed6] rounded-[100px]" />
+              <div className="justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Transport details</div>
+            </div>
+            <div className="self-stretch inline-flex justify-start items-start gap-6 flex-wrap">
+              {/* Pick - Up */}
             <div className="flex-1 min-w-[280px] rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-center items-start overflow-hidden">
               <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
                 <div className="flex-1 flex justify-start items-center gap-2 min-w-0">
@@ -514,7 +634,8 @@ export default function BookingDetails({
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -779,6 +900,7 @@ export default function BookingDetails({
         travelDate={bookingData.travelDate}
         tripRound={bookingData.tripRound}
         pricePerPax={bookingData.units.find((u) => u.quantity > 0)?.price || 1500}
+        units={bookingData.units}
         onConfirm={(condition, data) => {
           console.log("No-show condition:", condition, data);
           setShowNoShowModal(false);

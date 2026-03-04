@@ -52,6 +52,16 @@ const EXCURSION_TRIP_OVERRIDES: Partial<Record<string, TripDetail>> = {
       { position: "Guide", name: "G. Mary", phone: "092-7788990" },
     ],
   },
+  EC25DM35: {
+    vehicleName: "Bus (35)",
+    registration: "ขว-456",
+    personnel: [
+      { position: "Driver", name: "สมชาย มาครั้ง", phone: "089-111-2233" },
+    ],
+    guides: [
+      { position: "Guide", name: "G. Jannie", phone: "080-2093565" },
+    ],
+  },
   EC255D2C: {
     vehicleName: "Guide Only (20)",
     registration: "Guide",
