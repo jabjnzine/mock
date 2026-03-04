@@ -71,6 +71,16 @@ const EXCURSION_TRIP_OVERRIDES: Partial<Record<string, TripDetail>> = {
       { position: "Guide", name: "G. Mary", phone: "092-7788990" },
     ],
   },
+  TS0003: {
+    vehicleName: "Bus (35)",
+    registration: "กข-123",
+    personnel: [
+      { position: "Driver", name: "สมชาย มาครั้ง", phone: "089-111-2233" },
+    ],
+    guides: [
+      { position: "Guide", name: "G. Jannie", phone: "080-2093565" },
+    ],
+  },
 };
 
 export function getTripDetail(tripCode: string, isTransport: boolean): TripDetail {

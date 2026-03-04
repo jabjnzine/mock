@@ -456,9 +456,23 @@ export default function NoShowModal({
                         >
                           <MinusIcon className="size-4 text-[#265ED6]" />
                         </button>
-                        <span className="w-12 py-1 text-center text-[#2A2A2A] text-base font-semibold font-['IBM_Plex_Sans_Thai'] tabular-nums">
-                          {value}
-                        </span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={value}
+                          disabled={maxThisUnit <= 0}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            if (raw === "") {
+                              setValue(0);
+                              return;
+                            }
+                            const n = parseInt(raw, 10);
+                            if (!Number.isNaN(n)) setValue(n);
+                          }}
+                          className={`w-12 py-1 text-center text-[#2A2A2A] text-base font-semibold font-['IBM_Plex_Sans_Thai'] tabular-nums border border-[#d9d9d9] rounded outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${maxThisUnit <= 0 ? "bg-[#F8F8F8] cursor-not-allowed" : "bg-white focus:border-[#265ED6]"}`}
+                          aria-label={`Check-in ${unit.type} quantity`}
+                        />
                         <button
                           type="button"
                           onClick={() => setValue(value + 1)}

@@ -205,11 +205,24 @@ export default function ViewBookingPage() {
                       >
                         <MinusIcon className="size-5" />
                       </button>
-                      <div className="w-24 h-11 px-3 py-1 bg-white rounded-lg border border-zinc-300 flex items-center justify-center">
-                        <span className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">
-                          {checkInQty}
-                        </span>
-                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={checkInQty}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          if (raw === "") {
+                            setCheckInQty(0);
+                            return;
+                          }
+                          const n = parseInt(raw, 10);
+                          if (!Number.isNaN(n)) {
+                            setCheckInQty(Math.max(0, Math.min(bookingQty, n)));
+                          }
+                        }}
+                        className="w-24 h-11 px-3 py-1 bg-white rounded-lg border border-zinc-300 text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        aria-label="Check-in quantity"
+                      />
                       <button
                         type="button"
                         onClick={increment}

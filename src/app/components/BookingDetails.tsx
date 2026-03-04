@@ -162,6 +162,12 @@ const TS0003_BOOKING_DATA: BookingData = {
   transportCodePickUp: "EC25DM35",
   transportCodeDropOff: "EC25DM35",
   vehicleDetail: "Bus (35)",
+  vehiclePlate: "กข-123",
+  captain: { name: "สมชาย มาครั้ง", phone: "089-111-2233" },
+  assistant: { name: "", phone: "" },
+  assistant2: undefined,
+  guide1: { name: "G. Jannie", phone: "080-2093565" },
+  guide2: { name: "", phone: "" },
   pickUpVehicle: "Bus (35)",
   dropOffVehicle: "Bus (35)",
   option: "Day Trip",
@@ -308,11 +314,24 @@ export default function BookingDetails({
               >
                 <MinusIcon className="w-6 h-6 text-[#265ed6]" strokeWidth={1.5} />
               </button>
-              <div className="w-[100px] h-11 px-3 py-1 bg-white rounded-lg border border-[#d9d9d9] inline-flex items-center justify-center">
-                <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                  {checkInPax}
-                </span>
-              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={checkInPax}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  if (raw === "") {
+                    setCheckInPax(0);
+                    return;
+                  }
+                  const n = parseInt(raw, 10);
+                  if (!Number.isNaN(n)) {
+                    setCheckInPax(Math.max(0, Math.min(bookingData.bookingQuantity, n)));
+                  }
+                }}
+                className="w-[100px] h-11 px-3 py-1 bg-white rounded-lg border border-[#d9d9d9] text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight text-center outline-none focus:border-[#265ed6] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                aria-label="Check-in quantity"
+              />
               <button
                 type="button"
                 onClick={handleIncrease}
@@ -484,19 +503,21 @@ export default function BookingDetails({
                   <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
                     <div className="inline-flex justify-end items-center gap-2">
                       <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain :</div>
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.bookingNo === "TS0003" ? "Driver" : "Captain"} :</div>
                       </div>
                       <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.name}</div>
                       <a href={`tel:${bookingData.captain.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.phone}</a>
                     </div>
-                    <div className="inline-flex justify-end items-center gap-2">
-                      <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 1 :</div>
+                    {bookingData.assistant.name && (
+                      <div className="inline-flex justify-end items-center gap-2">
+                        <div className="flex justify-start items-center gap-2">
+                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 1 :</div>
+                        </div>
+                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.name}</div>
+                        <a href={`tel:${bookingData.assistant.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.phone}</a>
                       </div>
-                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.name}</div>
-                      <a href={`tel:${bookingData.assistant.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.phone}</a>
-                    </div>
-                    {bookingData.assistant2 && (
+                    )}
+                    {bookingData.assistant2 && bookingData.assistant2.name && (
                       <div className="inline-flex justify-end items-center gap-2">
                         <div className="flex justify-start items-center gap-2">
                           <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 2 :</div>
@@ -513,18 +534,20 @@ export default function BookingDetails({
                   <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
                     <div className="inline-flex justify-end items-center gap-2">
                       <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 1 :</div>
+                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.bookingNo === "TS0003" ? "Guide" : "Guide 1"} :</div>
                       </div>
                       <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.name}</div>
                       <a href={`tel:${bookingData.guide1.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.phone}</a>
                     </div>
-                    <div className="inline-flex justify-end items-center gap-2">
-                      <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 2 :</div>
+                    {bookingData.guide2.name && (
+                      <div className="inline-flex justify-end items-center gap-2">
+                        <div className="flex justify-start items-center gap-2">
+                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 2 :</div>
+                        </div>
+                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.name}</div>
+                        <a href={`tel:${bookingData.guide2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.phone}</a>
                       </div>
-                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.name}</div>
-                      <a href={`tel:${bookingData.guide2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.phone}</a>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
