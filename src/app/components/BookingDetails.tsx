@@ -20,6 +20,7 @@ import {
   Cog6ToothIcon,
   TruckIcon,
 } from "@heroicons/react/24/outline";
+import { getTripDetail, type TripPerson } from "@/app/lib/check-in-trip";
 import NoShowModal from "./NoShowModal";
 import WarningModal from "./WarningModal";
 import LoadingModal from "./LoadingModal";
@@ -31,6 +32,12 @@ interface BookingDetailsProps {
   onCheckIn: (checkInPax: number) => void;
   /** "excursion" = Trip Code + Vehicle/Personnel/Guide เดี่ยว (Check-in > Excursion > Check In) */
   tripDetailsVariant?: "excursion" | "transport";
+  /** เมื่อ true จะแสดงเป็น View อย่างเดียว ไม่แสดงปุ่ม Check-in และ Check-in Control */
+  readonly?: boolean;
+  /** ใช้ override ค่า Trip Type ที่แสดงบนหัวการ์ด (เช่น ให้ตรงกับ Trip Code ที่เปิดมาจาก View Trip) */
+  initialTripType?: string;
+  /** ข้อมูลจาก Trip/Booking เมื่อเปิด View จากหน้า View Trip Code ให้แสดง Program, Option ฯลฯ ตรงกับ Trip */
+  initialBookingSnapshot?: Partial<BookingData>;
 }
 
 interface BookingData {
@@ -185,6 +192,9 @@ export default function BookingDetails({
   onCancel,
   onCheckIn,
   tripDetailsVariant = "transport",
+  readonly = false,
+  initialTripType,
+  initialBookingSnapshot,
 }: BookingDetailsProps) {
   const [expandedSections, setExpandedSections] = useState({
     bookingDetails: true,
@@ -194,8 +204,13 @@ export default function BookingDetails({
     locationDetails: true,
   });
 
-  const bookingData: BookingData =
+  const baseData: BookingData =
     bookingId === "TS0003" ? TS0003_BOOKING_DATA : DEFAULT_BOOKING_DATA;
+  const bookingData: BookingData = {
+    ...baseData,
+    ...(initialBookingSnapshot ?? {}),
+    bookingNo: bookingId,
+  };
 
   const [checkInPax, setCheckInPax] = useState(bookingData.bookingQuantity);
   const [showNoShowModal, setShowNoShowModal] = useState(false);
@@ -237,22 +252,34 @@ export default function BookingDetails({
   const discount = 0;
   const totalPrice = subtotal - discount;
   const totalKB = bookingData.units.reduce((sum, unit) => sum + unit.kb, 0);
+  const displayTripType = initialTripType ?? bookingData.tripType;
+  const tripDetail = getTripDetail(bookingData.tripCode, tripDetailsVariant === "transport");
+  const pickUpDetail =
+    tripDetailsVariant === "transport"
+      ? getTripDetail(bookingData.transportCodePickUp, true)
+      : null;
+  const dropOffDetail =
+    tripDetailsVariant === "transport"
+      ? getTripDetail(bookingData.transportCodeDropOff, true)
+      : null;
 
   return (
     <div className="self-stretch p-6 bg-white rounded-2xl border border-[#f8f8f8] flex flex-col justify-start items-start gap-4 overflow-hidden">
       {/* Action bar */}
-      <div className="self-stretch flex items-center justify-end">
-        <Button
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium shadow-sm"
-          onClick={() => {
-            if (noShowPax > 0) setShowNoShowModal(true);
-            else setShowWarningModal(true);
-          }}
-          startContent={<CheckCircleIcon className="w-5 h-5" />}
-        >
-          Check In
-        </Button>
-      </div>
+      {!readonly && (
+        <div className="self-stretch flex items-center justify-end">
+          <Button
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium shadow-sm"
+            onClick={() => {
+              if (noShowPax > 0) setShowNoShowModal(true);
+              else setShowWarningModal(true);
+            }}
+            startContent={<CheckCircleIcon className="w-5 h-5" />}
+          >
+            Check In
+          </Button>
+        </div>
+      )}
 
       {/* Header: รูป + ชื่อโปรแกรม + Trip Type (ตาม reference) */}
       <div className="self-stretch flex justify-start items-center gap-2.5">
@@ -264,13 +291,34 @@ export default function BookingDetails({
         </div>
         <div className="flex justify-start items-center gap-2.5">
           <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip Type :</span>
-          <span className="px-2 py-1 bg-[#f8fcff] rounded-[30px] border border-[#265ed6] text-[#265ed6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
-            {bookingData.tripType}
-          </span>
+          {/private/i.test(displayTripType) ? (
+            <div
+              className="w-[88px] px-2 py-1 bg-[#fffbeb] rounded-[30px] outline outline-[0.80px] outline-offset-[-0.80px] outline-[#ffc107] inline-flex flex-col justify-center items-center gap-2"
+            >
+              <div className="inline-flex justify-center items-center gap-1">
+                <UserIcon className="w-5 h-5 text-[#ffc107]" strokeWidth={1.5} />
+                <span className="text-center justify-start text-[#ffc107] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
+                  Private
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="px-2 py-1 bg-[#f8fcff] rounded-[30px] outline outline-[0.80px] outline-offset-[-0.80px] outline-[#265ed6] inline-flex flex-col justify-center items-center gap-1"
+            >
+              <div className="inline-flex justify-center items-center gap-1">
+                <UserGroupIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
+                <span className="w-12 text-center justify-start text-[#265ed6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
+                  Join In
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Check-in Control — ตาม reference */}
+      {!readonly && (
       <div className="w-full max-w-[1568px] p-6 bg-[#f8f8f8] rounded-2xl flex flex-col justify-start items-center gap-4">
         <div className="self-stretch inline-flex justify-start items-center gap-2">
           <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center gap-2.5">
@@ -367,6 +415,7 @@ export default function BookingDetails({
           </div>
         </div>
       </div>
+      )}
 
       {/* Booking Details — ตาม reference */}
       <div className="w-full max-w-[1568px] p-6 bg-white rounded-2xl border border-[#d9d9d9] flex flex-col justify-start items-center gap-4">
@@ -492,39 +541,38 @@ export default function BookingDetails({
                   <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Vehicle Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2 min-w-0">
                     <div className="inline-flex justify-start items-center gap-2">
-                      <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehicleDetail}</div>
+                      <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                        {tripDetail.vehicleName}
+                      </div>
                     </div>
-                    <div className="self-stretch justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                    <div className="self-stretch justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                      {tripDetail.registration}
+                    </div>
                   </div>
                 </div>
                 <div className="self-stretch inline-flex justify-start items-start gap-2">
                   <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Personnel Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
-                    <div className="inline-flex justify-end items-center gap-2">
-                      <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.bookingNo === "TS0003" ? "Driver" : "Captain"} :</div>
-                      </div>
-                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.name}</div>
-                      <a href={`tel:${bookingData.captain.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.captain.phone}</a>
-                    </div>
-                    {bookingData.assistant.name && (
-                      <div className="inline-flex justify-end items-center gap-2">
-                        <div className="flex justify-start items-center gap-2">
-                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 1 :</div>
+                    {tripDetail.personnel.length > 0 ? (
+                      tripDetail.personnel.map((p: TripPerson, index: number) => (
+                        <div key={`person-${index}`} className="inline-flex justify-end items-center gap-2 flex-wrap">
+                          <div className="flex justify-start items-center gap-2">
+                            <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                              {p.position} :
+                            </div>
+                          </div>
+                          <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.name}</div>
+                          <a
+                            href={`tel:${p.phone}`}
+                            className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight"
+                          >
+                            {p.phone}
+                          </a>
                         </div>
-                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.name}</div>
-                        <a href={`tel:${bookingData.assistant.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant.phone}</a>
-                      </div>
-                    )}
-                    {bookingData.assistant2 && bookingData.assistant2.name && (
-                      <div className="inline-flex justify-end items-center gap-2">
-                        <div className="flex justify-start items-center gap-2">
-                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Captain Assistance 2 :</div>
-                        </div>
-                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant2.name}</div>
-                        <a href={`tel:${bookingData.assistant2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.assistant2.phone}</a>
-                      </div>
+                      ))
+                    ) : (
+                      <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
                     )}
                   </div>
                 </div>
@@ -532,21 +580,25 @@ export default function BookingDetails({
                   <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">Guide Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
-                    <div className="inline-flex justify-end items-center gap-2">
-                      <div className="flex justify-start items-center gap-2">
-                        <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.bookingNo === "TS0003" ? "Guide" : "Guide 1"} :</div>
-                      </div>
-                      <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.name}</div>
-                      <a href={`tel:${bookingData.guide1.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide1.phone}</a>
-                    </div>
-                    {bookingData.guide2.name && (
-                      <div className="inline-flex justify-end items-center gap-2">
-                        <div className="flex justify-start items-center gap-2">
-                          <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide 2 :</div>
+                    {tripDetail.guides.length > 0 ? (
+                      tripDetail.guides.map((g: TripPerson, index: number) => (
+                        <div key={`guide-${index}`} className="inline-flex justify-end items-center gap-2 flex-wrap">
+                          <div className="flex justify-start items-center gap-2">
+                            <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                              {g.position} :
+                            </div>
+                          </div>
+                          <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{g.name}</div>
+                          <a
+                            href={`tel:${g.phone}`}
+                            className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight"
+                          >
+                            {g.phone}
+                          </a>
                         </div>
-                        <div className="text-right justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.name}</div>
-                        <a href={`tel:${bookingData.guide2.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.guide2.phone}</a>
-                      </div>
+                      ))
+                    ) : (
+                      <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
                     )}
                   </div>
                 </div>
@@ -587,25 +639,47 @@ export default function BookingDetails({
                   <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2">
-                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpVehicle}</div>
-                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{pickUpDetail?.vehicleName ?? bookingData.pickUpVehicle}</div>
+                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{pickUpDetail?.registration ?? bookingData.vehiclePlate}</div>
                   </div>
                 </div>
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Personnel Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2">
-                    <div className="inline-flex justify-start items-center gap-2 flex-wrap">
-                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
-                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.name}</span>
-                      <a href={`tel:${bookingData.pickUpDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.phone}</a>
-                    </div>
+                    {pickUpDetail?.personnel.length ? (
+                      pickUpDetail.personnel.map((p, i) => (
+                        <div key={i} className="inline-flex justify-start items-center gap-2 flex-wrap">
+                          <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.position} :</span>
+                          <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.name}</span>
+                          <a href={`tel:${p.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.phone}</a>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="inline-flex justify-start items-center gap-2 flex-wrap">
+                        <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
+                        <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.name}</span>
+                        <a href={`tel:${bookingData.pickUpDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.pickUpDriver.phone}</a>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Guide Detail</div>
-                  <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    {pickUpDetail?.guides.length ? (
+                      pickUpDetail.guides.map((g, i) => (
+                        <div key={i} className="inline-flex justify-start items-center gap-2 flex-wrap">
+                          <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide {i + 1} :</span>
+                          <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{g.name}</span>
+                          <a href={`tel:${g.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{g.phone}</a>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -635,25 +709,47 @@ export default function BookingDetails({
                   <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2">
-                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffVehicle}</div>
-                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.vehiclePlate}</div>
+                    <div className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{dropOffDetail?.vehicleName ?? bookingData.dropOffVehicle}</div>
+                    <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{dropOffDetail?.registration ?? bookingData.vehiclePlate}</div>
                   </div>
                 </div>
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <UserGroupIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Personnel Detail</div>
                   <div className="inline-flex flex-col justify-center items-start gap-2">
-                    <div className="inline-flex justify-start items-center gap-2 flex-wrap">
-                      <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
-                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.name}</span>
-                      <a href={`tel:${bookingData.dropOffDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.phone}</a>
-                    </div>
+                    {dropOffDetail?.personnel.length ? (
+                      dropOffDetail.personnel.map((p, i) => (
+                        <div key={i} className="inline-flex justify-start items-center gap-2 flex-wrap">
+                          <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.position} :</span>
+                          <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.name}</span>
+                          <a href={`tel:${p.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{p.phone}</a>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="inline-flex justify-start items-center gap-2 flex-wrap">
+                        <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Driver :</span>
+                        <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.name}</span>
+                        <a href={`tel:${bookingData.dropOffDriver.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingData.dropOffDriver.phone}</a>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <UserIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Guide Detail</div>
-                  <div className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</div>
+                  <div className="inline-flex flex-col justify-center items-start gap-2">
+                    {dropOffDetail?.guides.length ? (
+                      dropOffDetail.guides.map((g, i) => (
+                        <div key={i} className="inline-flex justify-start items-center gap-2 flex-wrap">
+                          <span className="text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Guide {i + 1} :</span>
+                          <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{g.name}</span>
+                          <a href={`tel:${g.phone}`} className="text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{g.phone}</a>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">-</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -922,6 +1018,7 @@ export default function BookingDetails({
         bookingNo={bookingId}
         travelDate={bookingData.travelDate}
         tripRound={bookingData.tripRound}
+        tripType={bookingData.tripType}
         pricePerPax={bookingData.units.find((u) => u.quantity > 0)?.price || 1500}
         units={bookingData.units}
         onConfirm={(condition, data) => {

@@ -536,6 +536,7 @@ export default function ViewBookingPage() {
         bookingNo={displayBookingNo}
         travelDate={mockBooking.travelDate}
         tripRound={mockBooking.tripRound}
+        tripType={mockBooking.tripType}
         customerName={mockBooking.customerName}
         pricePerPax={mockBooking.units.find((u) => u.total > 0)?.price ?? 1500}
         onConfirm={() => {

@@ -34,6 +34,7 @@ import LoadingModal from "../../../../components/LoadingModal";
 import SuccessModal from "../../../../components/SuccessModal";
 import NoShowModal from "../../../../components/NoShowModal";
 import CheckInModal from "../../../../components/CheckInModal";
+import BookingDetails from "../../../../components/BookingDetails";
 import { getTripDetail, type TripPerson } from "@/app/lib/check-in-trip";
 
 // ─── Summary Card Icons (ตรงกับ Check In List — SVG จาก Figma) ─────────────────
@@ -187,6 +188,26 @@ export default function CheckInViewPage() {
   const pendingRefundRef = useRef<{ bookingId: string; payload: unknown } | null>(null);
   const pendingBulkCheckInIdsRef = useRef<string[] | null>(null);
 
+  // Drawer แสดง View Booking (ใช้ BookingDetails เดียวกับหน้า Check-in)
+  const [showBookingDrawer, setShowBookingDrawer] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
+
+  const openBookingDrawer = (code: string) => {
+    setDrawerBookingId(code);
+    setShowBookingDrawer(true);
+    // ให้ animation เริ่มหลังจาก mount แล้ว
+    setTimeout(() => setDrawerOpen(true), 0);
+  };
+
+  const closeBookingDrawer = () => {
+    setDrawerOpen(false);
+    setTimeout(() => {
+      setShowBookingDrawer(false);
+      setDrawerBookingId(null);
+    }, 300);
+  };
+
   const revertPendingCheckInIfAny = () => {
     if (pendingOriginalBookingRef.current) {
       const { bookingId, checkIn, noShow, status } = pendingOriginalBookingRef.current;
@@ -213,11 +234,12 @@ export default function CheckInViewPage() {
   const code = tripCode ?? "EC25Z1PW";
   const TRIP_DATA_FROM_LIST: Record<
     string,
-    { travelDate: string; tripRound: string; program: string; totalPax: number; checkedInPax: number; status: string; remark: string }
+    { travelDate: string; tripRound: string; tripType: string; program: string; totalPax: number; checkedInPax: number; status: string; remark: string }
   > = {
     EC25Z1PW: {
       travelDate: "17/12/2025",
       tripRound: "07:30",
+      tripType: "Join In",
       program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
       totalPax: 20,
       checkedInPax: 7,
@@ -227,6 +249,7 @@ export default function CheckInViewPage() {
     EC2581C4: {
       travelDate: "17/12/2025",
       tripRound: "07:30",
+      tripType: "Join In",
       program: "Damnoen + Buffalo Cafe + Maeklong",
       totalPax: 39,
       checkedInPax: 38,
@@ -236,6 +259,7 @@ export default function CheckInViewPage() {
     EC25DM35: {
       travelDate: "17/12/2025",
       tripRound: "08:00",
+      tripType: "Join In",
       program: "Damnoen + Buffalo Cafe + Maeklong",
       totalPax: 35,
       checkedInPax: 15,
@@ -245,6 +269,7 @@ export default function CheckInViewPage() {
     EC255D2C: {
       travelDate: "17/12/2025",
       tripRound: "00:00",
+      tripType: "Join In",
       program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
       totalPax: 20,
       checkedInPax: 10,
@@ -254,10 +279,41 @@ export default function CheckInViewPage() {
     EC25ABC1: {
       travelDate: "16/12/2025",
       tripRound: "08:00",
+      tripType: "Join In",
       program: "Completed Trip Example",
       totalPax: 20,
       checkedInPax: 20,
       status: "Completed",
+      remark: "",
+    },
+    EC25PV01: {
+      travelDate: "17/12/2025",
+      tripRound: "08:00",
+      tripType: "Private",
+      program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      totalPax: 6,
+      checkedInPax: 0,
+      status: "Pending",
+      remark: "",
+    },
+    EC25PV02: {
+      travelDate: "17/12/2025",
+      tripRound: "08:30",
+      tripType: "Private",
+      program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
+      totalPax: 8,
+      checkedInPax: 5,
+      status: "Pending",
+      remark: "",
+    },
+    TF25Z1PW: {
+      travelDate: "17/12/2025",
+      tripRound: "07:30",
+      tripType: "Join In",
+      program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      totalPax: 20,
+      checkedInPax: 8,
+      status: "Pending",
       remark: "",
     },
   };
@@ -267,7 +323,7 @@ export default function CheckInViewPage() {
         tripCode: code,
         travelDate: tripDataFromList.travelDate,
         tripRound: tripDataFromList.tripRound,
-        tripType: "Join In",
+        tripType: tripDataFromList.tripType,
         program: tripDataFromList.program,
         remark: tripDataFromList.remark,
         status: tripDataFromList.status,
@@ -334,6 +390,17 @@ export default function CheckInViewPage() {
       { id: "1", bookingNo: bookingNo("0750"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed A", phone: "086-6666666", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
       { id: "2", bookingNo: bookingNo("0810"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed B", phone: "086-6666667", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
       { id: "3", bookingNo: bookingNo("0830"), program: programByCode("EC25ABC1"), option: "Day Trip", customerName: "Completed C", phone: "086-6666668", pax: 4, checkIn: 4, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
+    ],
+    EC25PV01: [
+      { id: "1", bookingNo: bookingNo("0800"), program: programByCode("EC25PV01"), option: "Private Tour with Lunch", customerName: "Family Chen", phone: "089-1234567", pax: 6, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+    ],
+    EC25PV02: [
+      { id: "1", bookingNo: bookingNo("0825"), program: programByCode("EC25PV02"), option: "Private Full Day Tour", customerName: "Mr. Smith Group", phone: "081-9876543", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:25", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0830"), program: programByCode("EC25PV02"), option: "Private Full Day Tour", customerName: "Ms. Johnson", phone: "082-1122334", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+    ],
+    TF25Z1PW: [
+      { id: "1", bookingNo: "TSB12250730", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Transport Guest", phone: "089-1112233", pax: 4, checkIn: 2, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "2", bookingNo: bookingNo("0745"), program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Another Guest", phone: "081-2223344", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
     ],
   };
   const bookings: Booking[] = bookingsByCode[code] ?? bookingsByCode.EC25Z1PW;
@@ -728,10 +795,19 @@ export default function CheckInViewPage() {
                       <ClockIcon className="size-6 text-[#1CB579] shrink-0" />
                       <span className="text-[#1CB579] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] text-center">{tripData.tripRound.replace(":", " : ")}</span>
                     </div>
-                    <div data-property-1="Variant4" className="h-8 px-2 py-0.5 bg-[#F8FCFF] rounded-full border border-[#265ED6] inline-flex items-center gap-1">
-                      <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
-                      <span className="w-12 text-center text-[#265ED6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{tripData.tripType}</span>
-                    </div>
+                    {/private/i.test(tripData.tripType) ? (
+                      <div className="w-[88px] px-2 py-1 bg-[#fffbeb] rounded-[30px] outline outline-[0.80px] outline-[#ffc107] outline-offset-[-0.80px] inline-flex flex-col justify-center items-center gap-2">
+                        <div className="inline-flex justify-center items-center gap-1">
+                          <UserIcon className="size-5 text-[#ffc107] shrink-0" strokeWidth={1.5} />
+                          <span className="text-center text-[#ffc107] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">Private</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div data-property-1="Variant4" className="h-8 px-2 py-0.5 bg-[#F8FCFF] rounded-full border border-[#265ED6] inline-flex items-center gap-1">
+                        <UserGroupIcon className="size-5 text-[#265ED6] shrink-0" />
+                        <span className="w-12 text-center text-[#265ED6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">{tripData.tripType}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-center items-center gap-3 shrink-0">
@@ -1068,7 +1144,7 @@ export default function CheckInViewPage() {
                               <div className="inline-flex justify-start items-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedBooking(booking)}
+                                  onClick={() => openBookingDrawer(booking.bookingNo)}
                                   className="justify-start text-[#265ED6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6 tracking-[0.01em] text-left"
                                 >
                                   {booking.bookingNo}
@@ -1432,6 +1508,7 @@ export default function CheckInViewPage() {
             bookingNo={bookingForModal.bookingNo}
             travelDate={tripData.travelDate}
             tripRound={tripData.tripRound}
+            tripType={tripData.tripType}
             customerName={bookingForModal.customerName}
             pricePerPax={1500}
             units={modalUnits}
@@ -1660,6 +1737,79 @@ export default function CheckInViewPage() {
         </>
       )}
       </div>
+
+      {/* Drawer: View Booking (BookingDetails) */}
+      {showBookingDrawer && drawerBookingId && (
+        <div
+          className={`fixed inset-0 z-[999] bg-stone-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-out ${
+            drawerOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[#b9b9b9] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                  Booking
+                </span>
+                <ChevronRightIcon className="size-5 text-[#b9b9b9]" />
+                <span className="text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                  View Booking
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeBookingDrawer}
+                className="size-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-zinc-800 border border-gray-200"
+                aria-label="Close"
+              >
+                <XMarkIcon className="size-5" />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+              <div className="w-full max-w-[1568px] mx-auto p-6">
+                <BookingDetails
+                  bookingId={drawerBookingId}
+                  tripDetailsVariant={isTransportFlow ? "transport" : "excursion"}
+                  readonly
+                  initialTripType={tripData.tripType}
+                  initialBookingSnapshot={(() => {
+                    const b = bookingStates.find((x) => x.bookingNo === drawerBookingId);
+                    if (!b) return undefined;
+                    const pricePerPax = 1500;
+                    const base = {
+                      tripCode: tripData.tripCode,
+                      title: tripData.program,
+                      option: b.option,
+                      travelDate: tripData.travelDate,
+                      tripRound: tripData.tripRound,
+                      tripType: tripData.tripType,
+                      customerName: b.customerName,
+                      phone: b.phone,
+                      bookingQuantity: b.pax,
+                      units: [
+                        { type: "Adult", price: pricePerPax, quantity: b.pax, kb: 0, total: pricePerPax * b.pax },
+                      ],
+                    };
+                    if (isTransportFlow) {
+                      return {
+                        ...base,
+                        transportCodePickUp: tripData.tripCode,
+                        transportCodeDropOff: tripData.tripCode,
+                      };
+                    }
+                    return base;
+                  })()}
+                  onCancel={closeBookingDrawer}
+                  onCheckIn={() => {
+                    closeBookingDrawer();
+                  }}
+                />
+              </div>
+            </div>
+        </div>
+      )}
     </>
   );
 }

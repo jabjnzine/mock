@@ -97,6 +97,39 @@ const JoinInBadge: React.FC = () => (
   </div>
 );
 
+const PRIVATE_YELLOW = "#ffc107";
+
+/** ไอคอน Private: คนเดียว (User icon) สีเหลือง */
+const PrivateIcon: React.FC = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+    <path d="M12.1586 10.87C12.0586 10.86 11.9386 10.86 11.8286 10.87C9.44859 10.79 7.55859 8.84 7.55859 6.44C7.55859 3.99 9.53859 2 11.9986 2C14.4486 2 16.4386 3.99 16.4386 6.44C16.4286 8.84 14.5386 10.79 12.1586 10.87Z" stroke={PRIVATE_YELLOW} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.0008 21.8097C10.1808 21.8097 8.37078 21.3497 6.99078 20.4297C4.57078 18.8097 4.57078 16.1697 6.99078 14.5597C9.74078 12.7197 14.2508 12.7197 17.0008 14.5597" stroke={PRIVATE_YELLOW} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const PrivateBadge: React.FC = () => (
+  <div
+    className="w-[88px] px-2 py-1 rounded-[30px] inline-flex flex-col justify-center items-center gap-2"
+    style={{
+      background: "var(--Color-Warning-50, #fffbeb)",
+      outline: "0.80px solid #ffc107",
+      outlineOffset: -0.8,
+      flexShrink: 0,
+      boxSizing: "border-box",
+    }}
+  >
+    <div style={{ display: "inline-flex", justifyContent: "center", alignItems: "center", gap: 4 }}>
+      <PrivateIcon />
+      <span
+        className="text-center text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight"
+        style={{ color: "#ffc107", fontFamily: FONT }}
+      >
+        Private
+      </span>
+    </div>
+  </div>
+);
+
 /** ไอคอน Alert: วงกลมส้ม + เส้นตั้ง + จุด ตาม SVG จาก Figma */
 const AlertIcon: React.FC = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
@@ -337,7 +370,7 @@ const TripTable: React.FC<TripTableProps> = ({ trips, totals, onTripClick }) => 
               </Cell>
 
               <Cell width={104} bg={bg} align="center">
-                <JoinInBadge />
+                {/private/i.test(trip.type) ? <PrivateBadge /> : <JoinInBadge />}
               </Cell>
 
               <Cell width={108} bg={bg}>

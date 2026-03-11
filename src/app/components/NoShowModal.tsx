@@ -11,6 +11,7 @@ import {
   ChevronRightIcon,
   CheckCircleIcon,
   UserGroupIcon,
+  UserIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 
@@ -25,6 +26,8 @@ interface NoShowModalProps {
   bookingNo: string;
   travelDate: string;
   tripRound: string;
+  /** Trip type (e.g. Join In) — shown in Original Booking for Reschedule/Refund */
+  tripType?: string;
   customerName?: string;
   pricePerPax: number;
   /** When multiple units (e.g. Infant + Adult), used to distribute no-show count per unit */
@@ -50,6 +53,7 @@ export default function NoShowModal({
   bookingNo,
   travelDate,
   tripRound,
+  tripType = "",
   customerName = "",
   pricePerPax,
   units = [],
@@ -59,6 +63,7 @@ export default function NoShowModal({
   onBackToCheckIn,
   hideBackOnConditionStep = false,
 }: NoShowModalProps) {
+  const isPrivateTrip = /private/i.test(tripType);
   const [modalType, setModalType] = useState<ModalType>("condition");
   const [noShowCount, setNoShowCount] = useState(noShowPax > 0 ? noShowPax : bookingQuantity);
   const [selectedCondition, setSelectedCondition] = useState<ConditionChoice | "">("");
@@ -247,7 +252,7 @@ export default function NoShowModal({
         });
       }
     } else if (modalType === "reschedule") {
-      if (rescheduleTravelDate && rescheduleTripRound) {
+      if (rescheduleTravelDate && rescheduleTripRound && (!isPrivateTrip || selectedSuggestion)) {
         // Emit for parent to show warning popup for reconfirmation
         onConfirm("reschedule", {
           travelDate: rescheduleTravelDate,
@@ -590,32 +595,54 @@ export default function NoShowModal({
             </>
           ) : modalType === "refund" ? (
             <div className="self-stretch p-6 flex flex-col justify-start items-start gap-6">
-              {/* Original Booking */}
+              {/* Original Booking — columns: [Booking No.|Trip type] [Travel date|No-show] [Trip Round] (Refund ไม่มี Price) */}
               <div className="self-stretch px-6 py-3 bg-slate-50 rounded-[10px] flex flex-col justify-start items-start overflow-hidden">
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
                   <div className="justify-start text-stone-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">Original Booking</div>
-                  <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                  <div className="self-stretch grid grid-cols-3 gap-x-2">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Booking No.</div>
                       <div className="justify-start text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingNo}</div>
                     </div>
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Travel date :</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{travelDate}</div>
                     </div>
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip Round</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{tripRound.replace(":", " : ")}</div>
                     </div>
                   </div>
-                  <div className="self-stretch inline-flex justify-start items-start gap-2">
-                    <div className="w-36 inline-flex flex-col justify-center items-start gap-1">
+                  <div className="self-stretch grid grid-cols-3 gap-x-2">
+                    {tripType ? (
+                      <div className="min-w-0 flex flex-col justify-center items-start gap-1">
+                        <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip type:</div>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 ${
+                            /private/i.test(tripType)
+                              ? "bg-amber-50 border border-orange-300 text-orange-700"
+                              : "bg-[#f8fcff] outline outline-[0.80px] outline-[#265ed6] text-[#265ed6]"
+                          }`}
+                        >
+                          {/private/i.test(tripType) ? (
+                            <UserIcon className="size-4 shrink-0 text-orange-600" strokeWidth={2} />
+                          ) : (
+                            <UserGroupIcon className="size-4 shrink-0 text-[#265ed6]" strokeWidth={2} />
+                          )}
+                          {tripType}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="min-w-0" />
+                    )}
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">No-show:</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
                         {noShowCount} Pax
                         <span className="text-zinc-500 text-xs ml-1 font-normal">from {bookingQuantity} Pax</span>
                       </div>
                     </div>
+                    <div className="min-w-0" />
                   </div>
                 </div>
               </div>
@@ -888,30 +915,51 @@ export default function NoShowModal({
           ) : (
             /* Reschedule — Original Booking 2 rows, inputs zinc-300, Suggestion blue-700, Summary slate-800 */
             <div className="self-stretch p-6 flex flex-col justify-start items-start gap-6">
-              {/* Original Booking — row1: Booking No. | Travel date | Trip Round, row2: No-show | Price */}
+              {/* Original Booking — columns: [Booking No.|Trip type] [Travel date|No-show] [Trip Round|Price] */}
               <div className="self-stretch px-6 py-3 bg-[#F8FCFF] rounded-[10px] flex flex-col justify-start items-start overflow-hidden">
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
                   <div className="justify-start text-stone-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">Original Booking</div>
-                  <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                  <div className="self-stretch grid grid-cols-3 gap-x-2">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Booking No.</div>
                       <div className="justify-start text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{bookingNo}</div>
                     </div>
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Travel date :</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{travelDate}</div>
                     </div>
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip Round</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{tripRound.replace(":", " : ")}</div>
                     </div>
                   </div>
-                  <div className="self-stretch inline-flex justify-start items-start gap-2">
-                    <div className="w-36 inline-flex flex-col justify-center items-start gap-1">
+                  <div className="self-stretch grid grid-cols-3 gap-x-2">
+                    {tripType ? (
+                      <div className="min-w-0 flex flex-col justify-center items-start gap-1">
+                        <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip type:</div>
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 ${
+                            /private/i.test(tripType)
+                              ? "bg-amber-50 border border-orange-300 text-orange-700"
+                              : "bg-[#f8fcff] outline outline-[0.80px] outline-[#265ed6] text-[#265ed6]"
+                          }`}
+                        >
+                          {/private/i.test(tripType) ? (
+                            <UserIcon className="size-4 shrink-0 text-orange-600" strokeWidth={2} />
+                          ) : (
+                            <UserGroupIcon className="size-4 shrink-0 text-[#265ed6]" strokeWidth={2} />
+                          )}
+                          {tripType}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="min-w-0" />
+                    )}
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">No-show:</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{noShowCount} Pax</div>
                     </div>
-                    <div className="flex-1 min-w-0 inline-flex flex-col justify-center items-start gap-1">
+                    <div className="min-w-0 flex flex-col justify-center items-start gap-1">
                       <div className="justify-start text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Price :</div>
                       <div className="justify-start text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">฿ {(pricePerPax * noShowCount).toLocaleString()}</div>
                     </div>
@@ -987,77 +1035,79 @@ export default function NoShowModal({
                   </div>
                 </div>
 
-                {/* Suggestion — blue-700 heading, outline-zinc-300, Pax icon blue + stone-50 pill */}
-                <div className="w-full max-w-[500px] p-6 bg-white rounded-[10px] outline outline-1 outline-offset-[-1px] outline-zinc-300 flex flex-col justify-start items-start gap-6 overflow-hidden">
-                  <div className="justify-start text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Suggestion</div>
-                  <div className="self-stretch flex flex-col justify-start items-start gap-3">
-                    <div className="self-stretch inline-flex justify-start items-start">
-                      <div className="w-36 flex justify-start items-center gap-2">
-                        <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip code</div>
+                {/* Suggestion — แสดงเฉพาะ Trip type ที่ไม่ใช่ Private */}
+                {!isPrivateTrip && (
+                  <div className="w-full max-w-[500px] p-6 bg-white rounded-[10px] outline outline-1 outline-offset-[-1px] outline-zinc-300 flex flex-col justify-start items-start gap-6 overflow-hidden">
+                    <div className="justify-start text-blue-700 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Suggestion</div>
+                    <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                      <div className="self-stretch inline-flex justify-start items-start">
+                        <div className="w-36 flex justify-start items-center gap-2">
+                          <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip code</div>
+                        </div>
+                        <div className="w-28 flex justify-start items-center gap-2">
+                          <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Travel Date</div>
+                        </div>
+                        <div className="w-20 flex justify-start items-center gap-2">
+                          <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip round</div>
+                        </div>
+                        <div className="w-24 flex justify-center items-center gap-2">
+                          <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Pax</div>
+                        </div>
                       </div>
-                      <div className="w-28 flex justify-start items-center gap-2">
-                        <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Travel Date</div>
-                      </div>
-                      <div className="w-20 flex justify-start items-center gap-2">
-                        <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Trip round</div>
-                      </div>
-                      <div className="w-24 flex justify-center items-center gap-2">
-                        <div className="text-zinc-800 text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Pax</div>
-                      </div>
-                    </div>
-                    <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.5px] outline-gray-300" />
-                    <div className="self-stretch flex flex-col justify-start items-start gap-3 overflow-hidden">
-                      {suggestions.length > 0 ? (
-                        suggestions.map((suggestion, index) => (
-                          <div key={index} className="self-stretch inline-flex justify-start items-center">
-                            <div className="flex-1 flex justify-start items-center gap-2">
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="suggestion"
-                                  value={suggestion.code}
-                                  checked={selectedSuggestion === suggestion.code}
-                                  onChange={(e) => {
-                                    setSelectedSuggestion(e.target.value);
-                                    setRescheduleTravelDate(suggestion.date);
-                                    setRescheduleTripRound(suggestion.round);
-                                  }}
-                                  className="sr-only peer"
-                                />
-                                <div className={`size-6 rounded-full border-2 transition-colors ${
-                                  selectedSuggestion === suggestion.code
-                                    ? "bg-blue-700 border-blue-700"
-                                    : "bg-transparent border-zinc-700"
-                                } flex items-center justify-center`}>
-                                  {selectedSuggestion === suggestion.code && (
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                                  )}
+                      <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.5px] outline-gray-300" />
+                      <div className="self-stretch flex flex-col justify-start items-start gap-3 overflow-hidden">
+                        {suggestions.length > 0 ? (
+                          suggestions.map((suggestion, index) => (
+                            <div key={index} className="self-stretch inline-flex justify-start items-center">
+                              <div className="flex-1 flex justify-start items-center gap-2">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name="suggestion"
+                                    value={suggestion.code}
+                                    checked={selectedSuggestion === suggestion.code}
+                                    onChange={(e) => {
+                                      setSelectedSuggestion(e.target.value);
+                                      setRescheduleTravelDate(suggestion.date);
+                                      setRescheduleTripRound(suggestion.round);
+                                    }}
+                                    className="sr-only peer"
+                                  />
+                                  <div className={`size-6 rounded-full border-2 transition-colors ${
+                                    selectedSuggestion === suggestion.code
+                                      ? "bg-blue-700 border-blue-700"
+                                      : "bg-transparent border-zinc-700"
+                                  } flex items-center justify-center`}>
+                                    {selectedSuggestion === suggestion.code && (
+                                      <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                    )}
+                                  </div>
+                                </label>
+                                <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.code}</div>
+                              </div>
+                              <div className="w-28 flex justify-start items-center gap-2">
+                                <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.date}</div>
+                              </div>
+                              <div className="w-20 flex justify-start items-center gap-2">
+                                <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.round.replace(":", " : ")}</div>
+                              </div>
+                              <div className="w-24 flex justify-start items-center gap-2">
+                                <div className="h-7 px-2 py-1 bg-stone-50 rounded-[30px] inline-flex items-center justify-center gap-1">
+                                  <UserGroupIcon className="size-4 text-blue-700 shrink-0" />
+                                  <span className="text-slate-800 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">{suggestion.pax}</span>
                                 </div>
-                              </label>
-                              <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.code}</div>
-                            </div>
-                            <div className="w-28 flex justify-start items-center gap-2">
-                              <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.date}</div>
-                            </div>
-                            <div className="w-20 flex justify-start items-center gap-2">
-                              <div className="text-zinc-800 text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{suggestion.round.replace(":", " : ")}</div>
-                            </div>
-                            <div className="w-24 flex justify-start items-center gap-2">
-                              <div className="h-7 px-2 py-1 bg-stone-50 rounded-[30px] inline-flex items-center justify-center gap-1">
-                                <UserGroupIcon className="size-4 text-blue-700 shrink-0" />
-                                <span className="text-slate-800 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-4 tracking-tight">{suggestion.pax}</span>
                               </div>
                             </div>
+                          ))
+                        ) : (
+                          <div className="self-stretch py-4 text-center text-zinc-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                            {rescheduleTripRound ? "No suggestions found for this round" : "Please select Trip Round to see suggestions"}
                           </div>
-                        ))
-                      ) : (
-                        <div className="self-stretch py-4 text-center text-zinc-500 text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                          {rescheduleTripRound ? "No suggestions found for this round" : "Please select Trip Round to see suggestions"}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Additional fee — placeholder ฿ 0.00 */}
@@ -1265,20 +1315,20 @@ export default function NoShowModal({
                     Cancel
                   </span>
                 </button>
-                <button
+                  <button
                   type="button"
                   onClick={handleConfirm}
                   disabled={
                     modalType === "refund"
                       ? !refundReason || (refundReason === "other_reason" && !refundOtherReason.trim())
-                      : !rescheduleTravelDate || !rescheduleTripRound
+                      : !rescheduleTravelDate || !rescheduleTripRound || (isPrivateTrip && !selectedSuggestion)
                   }
                   className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 ${
                     modalType === "refund"
                       ? refundReason && (refundReason !== "other_reason" || refundOtherReason.trim())
                         ? "bg-[#265ED6] text-white hover:opacity-90"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : rescheduleTravelDate && rescheduleTripRound
+                      : rescheduleTravelDate && rescheduleTripRound && (!isPrivateTrip || selectedSuggestion)
                       ? "bg-[#265ED6] text-white hover:opacity-90"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}

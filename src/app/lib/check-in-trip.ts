@@ -71,6 +71,27 @@ const EXCURSION_TRIP_OVERRIDES: Partial<Record<string, TripDetail>> = {
       { position: "Guide", name: "G. Mary", phone: "092-7788990" },
     ],
   },
+  EC25PV01: {
+    vehicleName: "Private Speedboat (10)",
+    registration: "ภก-789",
+    personnel: [
+      { position: "Captain", name: "Capt. Trunk", phone: "096-6502747" },
+      { position: "Crew", name: "สมศักดิ์ เรือเร็ว", phone: "082-5551234" },
+    ],
+    guides: [
+      { position: "Guide", name: "G. Peter", phone: "094-4313995" },
+    ],
+  },
+  EC25PV02: {
+    vehicleName: "Private Van (10)",
+    registration: "กง-321",
+    personnel: [
+      { position: "Driver", name: "สมชาย มาครั้ง", phone: "089-111-2233" },
+    ],
+    guides: [
+      { position: "Guide", name: "Guide Tom", phone: "068-4313887" },
+    ],
+  },
   TS0003: {
     vehicleName: "Bus (35)",
     registration: "กข-123",

@@ -137,6 +137,38 @@ export default function CheckInListPage() {
       checkedIn: 10,
       noShow: 0,
     },
+    // Private — Phuket Maya Bay (1 booking, 6 pax)
+    {
+      id: 6,
+      tripCode: "EC25PV01",
+      travelDate: "17/12/2025",
+      tripType: "Private",
+      tripRound: "08 : 00",
+      program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+      registration: getRegistrationDisplay("EC25PV01", false),
+      personnel: getPersonnelDisplay("EC25PV01", false),
+      guide: "G. Peter (094-4313995)",
+      pax: 6,
+      waiting: 6,
+      checkedIn: 0,
+      noShow: 0,
+    },
+    // Private — Bangkok Grand Palace (2 bookings, 8 pax)
+    {
+      id: 7,
+      tripCode: "EC25PV02",
+      travelDate: "17/12/2025",
+      tripType: "Private",
+      tripRound: "08 : 30",
+      program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
+      registration: getRegistrationDisplay("EC25PV02", false),
+      personnel: getPersonnelDisplay("EC25PV02", false),
+      guide: "Guide Tom 068-4313887",
+      pax: 8,
+      waiting: 3,
+      checkedIn: 5,
+      noShow: 0,
+    },
   ];
 
   const completedTrips: TripData[] = [
