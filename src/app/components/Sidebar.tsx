@@ -14,7 +14,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
 } from "@heroicons/react/24/outline";
-import { CheckCircleIcon as CheckCircleIconSolid } from "@heroicons/react/24/solid";
+import { CheckCircleIcon as CheckCircleIconSolid, CurrencyDollarIcon as CurrencyDollarIconSolid } from "@heroicons/react/24/solid";
 
 const rowBase =
   "h-12 p-3 rounded-md inline-flex justify-start items-center gap-2 overflow-hidden w-full text-left transition-colors";
@@ -29,6 +29,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [checkInOpen, setCheckInOpen] = useState(true);
+  const [paymentOpen, setPaymentOpen] = useState(true);
 
   const isActive = (href: string) => pathname === href;
 
@@ -62,8 +63,9 @@ export default function Sidebar() {
             </button>
           </div>
 
-          {/* Menu — เหลือเฉพาะหมวด Check In */}
+          {/* Menu */}
           <div className="self-stretch flex flex-col justify-start items-start gap-1">
+
             {/* Check In — expandable */}
             <div className="self-stretch flex flex-col gap-2">
               <button
@@ -163,6 +165,67 @@ export default function Sidebar() {
                 </>
               )}
             </div>
+
+            {/* Divider */}
+            {!isCollapsed && <div className={divider} />}
+
+            {/* Payment — expandable (แยกออกจาก Check In) */}
+            <div className="self-stretch flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentOpen(!paymentOpen)}
+                className={`${rowBase} px-2 ${
+                  pathname.startsWith("/payment")
+                    ? "text-blue-600 hover:bg-white/5"
+                    : rowDefault
+                }`}
+              >
+                {pathname.startsWith("/payment") ? (
+                  <CurrencyDollarIconSolid className="size-6 flex-shrink-0" />
+                ) : (
+                  <CurrencyDollarIcon className="size-6 flex-shrink-0" />
+                )}
+                {!isCollapsed && (
+                  <>
+                    <span className="text-base font-medium leading-6 tracking-tight flex-1 text-left">
+                      Payment
+                    </span>
+                    <ChevronDownIcon
+                      className={`size-5 flex-shrink-0 transition-transform ${
+                        paymentOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </>
+                )}
+              </button>
+
+              {paymentOpen && !isCollapsed && (
+                <div className="w-56 flex flex-col gap-0">
+                  {[
+                    { href: "/payment/advance",  label: "Advance"  },
+                    { href: "/payment/expenses", label: "Expenses" },
+                    { href: "/payment/balance",  label: "Balance"  },
+                    { href: "/payment/report",   label: "Report"   },
+                  ].map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`${subRowBase} ${
+                        pathname.startsWith(href) ? rowActive : "text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <span
+                        className={`size-2 flex-shrink-0 rounded-full ${
+                          pathname.startsWith(href) ? "bg-white" : "bg-gray-100"
+                        }`}
+                      />
+                      <span>{label}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 
