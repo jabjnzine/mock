@@ -159,6 +159,10 @@ export default function NoShowModal({
   const [rescheduleReason, setRescheduleReason] = useState("Test");
   const [selectedSuggestion, setSelectedSuggestion] = useState("");
 
+  /** Join In ต้องเลือกวัน/รอบ; Private แสดงฟิลด์เดียวกันแต่ไม่บังคับ — Confirm ได้เลย โดย fallback เป็นทริปปัจจุบัน */
+  const canSubmitReschedule =
+    isPrivateTrip || Boolean(rescheduleTravelDate && rescheduleTripRound);
+
   const allSuggestions = [
     { code: "25L2KQ", date: "27/01/2026", round: "09:00", pax: "6/30" },
     { code: "25T5XZ", date: "27/01/2026", round: "10:00", pax: "8/30" },
@@ -252,17 +256,22 @@ export default function NoShowModal({
         });
       }
     } else if (modalType === "reschedule") {
-      if (rescheduleTravelDate && rescheduleTripRound && (!isPrivateTrip || selectedSuggestion)) {
-        // Emit for parent to show warning popup for reconfirmation
-        onConfirm("reschedule", {
-          travelDate: rescheduleTravelDate,
-          tripRound: rescheduleTripRound,
-          additionalFee: parseFloat(additionalFee || "0"),
-          reason: rescheduleReason,
-          suggestion: selectedSuggestion,
-          ...getNoShowPayload(),
-        });
-      }
+      if (!canSubmitReschedule) return;
+      // Private: ถ้าไม่กรอกวัน/รอบ ใช้ค่าจากทริปปัจจุบัน; ถ้ากรอกแล้วใช้ค่าจากฟอร์ม
+      const outTravelDate = isPrivateTrip
+        ? rescheduleTravelDate.trim() || travelDate
+        : rescheduleTravelDate;
+      const outTripRound = isPrivateTrip
+        ? rescheduleTripRound.trim() || tripRound
+        : rescheduleTripRound;
+      onConfirm("reschedule", {
+        travelDate: outTravelDate,
+        tripRound: outTripRound,
+        additionalFee: parseFloat(additionalFee || "0"),
+        reason: rescheduleReason,
+        suggestion: isPrivateTrip ? "" : selectedSuggestion,
+        ...getNoShowPayload(),
+      });
     }
   };
 
@@ -992,7 +1001,7 @@ export default function NoShowModal({
                 </div>
               )}
 
-              {/* Travel Date & Trip Round — same row, zinc-300 border, icons in fields */}
+              {/* Travel Date & Trip Round — Private แสดงเหมือน Join In แต่ไม่บังคับกรอก */}
               <div className="self-stretch flex flex-col justify-start items-start gap-3">
                 <div className="self-stretch inline-flex justify-start items-start gap-6 flex-nowrap">
                   <div className="w-60 shrink-0 inline-flex flex-col justify-center items-start gap-1">
@@ -1321,14 +1330,14 @@ export default function NoShowModal({
                   disabled={
                     modalType === "refund"
                       ? !refundReason || (refundReason === "other_reason" && !refundOtherReason.trim())
-                      : !rescheduleTravelDate || !rescheduleTripRound || (isPrivateTrip && !selectedSuggestion)
+                      : !canSubmitReschedule
                   }
                   className={`px-5 py-2 rounded-[100px] flex justify-center items-center gap-2 ${
                     modalType === "refund"
                       ? refundReason && (refundReason !== "other_reason" || refundOtherReason.trim())
                         ? "bg-[#265ED6] text-white hover:opacity-90"
                         : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : rescheduleTravelDate && rescheduleTripRound && (!isPrivateTrip || selectedSuggestion)
+                      : canSubmitReschedule
                       ? "bg-[#265ED6] text-white hover:opacity-90"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
