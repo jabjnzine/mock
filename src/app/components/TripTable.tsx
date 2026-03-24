@@ -681,9 +681,12 @@ const TripTable: React.FC<TripTableProps> = ({
             </div>
             <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.50px] outline-[#d9d9d9]" />
             <div className="flex flex-col justify-center items-start gap-1">
-              <div className="self-stretch inline-flex justify-start items-center gap-2.5">
-                <div className="justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                  Booking :
+              <div className="self-stretch inline-flex justify-between items-center gap-2.5">
+                <div className="justify-start text-[#2a2a2a] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                  Booking No.
+                </div>
+                <div className="justify-start text-[#2a2a2a] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                  Pax
                 </div>
               </div>
               {completedBookings.map((booking, index) => (

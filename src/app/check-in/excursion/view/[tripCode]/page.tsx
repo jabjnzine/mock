@@ -312,7 +312,7 @@ export default function CheckInViewPage() {
       tripType: "Join In",
       program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
       totalPax: 20,
-      checkedInPax: 8,
+      checkedInPax: 15,
       status: "Pending",
       remark: "",
     },
@@ -399,8 +399,12 @@ export default function CheckInViewPage() {
       { id: "2", bookingNo: bookingNo("0830"), program: programByCode("EC25PV02"), option: "Private Full Day Tour", customerName: "Ms. Johnson", phone: "082-1122334", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
     ],
     TF25Z1PW: [
-      { id: "1", bookingNo: "TSB12250730", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Transport Guest", phone: "089-1112233", pax: 4, checkIn: 2, noShow: 0, language: "EN", status: "waiting", remark: "-" },
-      { id: "2", bookingNo: bookingNo("0745"), program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Another Guest", phone: "081-2223344", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "1", bookingNo: "TSB12250730", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Transport Guest", phone: "089-1112233", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "2", bookingNo: "TSB12250745", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Another Guest", phone: "081-2223344", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      { id: "3", bookingNo: "TSB12250760", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Alpha", phone: "082-3001001", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
+      { id: "4", bookingNo: "TSB12250775", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Bravo", phone: "082-3001002", pax: 4, checkIn: 4, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:22", remark: "-" },
+      { id: "5", bookingNo: "TSB12250790", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Charlie", phone: "082-3001003", pax: 3, checkIn: 3, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:24", remark: "-" },
+      { id: "6", bookingNo: "TSB12250805", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Delta", phone: "082-3001004", pax: 3, checkIn: 3, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:25", remark: "-" },
     ],
   };
   const bookings: Booking[] = bookingsByCode[code] ?? bookingsByCode.EC25Z1PW;
