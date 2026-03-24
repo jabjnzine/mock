@@ -65,6 +65,10 @@ interface TripData {
   noShow: number;
   hasAlert?: boolean;
 }
+interface StatusBookingHoverItem {
+  bookingNo: string;
+  pax: number;
+}
 
 export default function CheckInListPage() {
   const router = useRouter();
@@ -188,6 +192,59 @@ export default function CheckInListPage() {
       noShow: 0,
     },
   ];
+  const waitingHoverByTripCode: Record<string, StatusBookingHoverItem[]> = {
+    EC25Z1PW: [
+      { bookingNo: "TSB12250730", pax: 2 },
+      { bookingNo: "TSB12250745", pax: 2 },
+      { bookingNo: "TSB12250800", pax: 1 },
+    ],
+    EC25DM35: [
+      { bookingNo: "TSB12250840", pax: 3 },
+      { bookingNo: "TSB12250850", pax: 4 },
+      { bookingNo: "TSB12250900", pax: 4 },
+      { bookingNo: "TSB12250910", pax: 4 },
+    ],
+    EC255D2C: [
+      { bookingNo: "TSB12250835", pax: 8 },
+      { bookingNo: "TSB12250850", pax: 2 },
+    ],
+    EC25PV01: [{ bookingNo: "TSB12250800", pax: 6 }],
+    EC25PV02: [{ bookingNo: "TSB12250830", pax: 3 }],
+  };
+  const completedHoverByTripCode: Record<string, StatusBookingHoverItem[]> = {
+    EC25Z1PW: [{ bookingNo: "TSB12250815", pax: 7 }],
+    EC2581C4: [
+      { bookingNo: "TSB12250710", pax: 8 },
+      { bookingNo: "TSB12250725", pax: 8 },
+      { bookingNo: "TSB12250740", pax: 4 },
+      { bookingNo: "TSB12250755", pax: 8 },
+      { bookingNo: "TSB12250810", pax: 8 },
+      { bookingNo: "TSB12250825", pax: 2 },
+    ],
+    EC25DM35: [
+      { bookingNo: "TSB12250800", pax: 5 },
+      { bookingNo: "TSB12250810", pax: 5 },
+      { bookingNo: "TSB12250820", pax: 5 },
+    ],
+    EC255D2C: [
+      { bookingNo: "TSB12250805", pax: 8 },
+      { bookingNo: "TSB12250820", pax: 2 },
+    ],
+    EC25PV02: [{ bookingNo: "TSB12250825", pax: 5 }],
+    EC25ABC1: [
+      { bookingNo: "TSB12250750", pax: 8 },
+      { bookingNo: "TSB12250810", pax: 8 },
+      { bookingNo: "TSB12250830", pax: 4 },
+    ],
+  };
+  const noShowHoverByTripCode: Record<string, StatusBookingHoverItem[]> = {
+    EC25Z1PW: [
+      { bookingNo: "TSB12250830", pax: 7 },
+      { bookingNo: "TSB12250815", pax: 1 },
+    ],
+    EC2581C4: [{ bookingNo: "TSB12250840", pax: 1 }],
+    EC25DM35: [{ bookingNo: "TSB12250830", pax: 5 }],
+  };
 
   const allTrips = [...pendingTrips, ...completedTrips];
   const trips = activeTab === "all" ? allTrips : activeTab === "pending" ? pendingTrips : completedTrips;
@@ -428,6 +485,9 @@ export default function CheckInListPage() {
                   checkedIn: totalCheckedIn,
                   noShow: totalNoShow,
                 }}
+                waitingHoverByTripCode={waitingHoverByTripCode}
+                completedHoverByTripCode={completedHoverByTripCode}
+                noShowHoverByTripCode={noShowHoverByTripCode}
                 onTripClick={handleView}
               />
             </div>
