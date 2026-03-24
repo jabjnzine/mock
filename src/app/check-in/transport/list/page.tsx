@@ -66,6 +66,15 @@ interface TripData {
   hasAlert?: boolean;
 }
 
+interface WaitingBookingHoverItem {
+  bookingNo: string;
+  pax: number;
+}
+interface CompletedBookingModalItem {
+  bookingNo: string;
+  pax: number;
+}
+
 export default function TransportCheckInListPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState("17/12/2025");
@@ -88,12 +97,24 @@ export default function TransportCheckInListPage() {
       guide: "G. Peter (094-4313995)",
       pax: 20,
       waiting: 5,
-      checkedIn: 8,
-      noShow: 7,
+      checkedIn: 2,
+      noShow: 13,
     },
   ];
 
   const completedTrips: TripData[] = [];
+  const waitingHoverByTripCode: Record<string, WaitingBookingHoverItem[]> = {
+    TF25Z1PW: [
+      { bookingNo: "TSB12250730", pax: 2 },
+      { bookingNo: "TSB12250745", pax: 3 },
+    ],
+  };
+  const completedModalByTripCode: Record<string, CompletedBookingModalItem[]> = {
+    TF25Z1PW: [
+      { bookingNo: "TSB12250730", pax: 2 },
+      { bookingNo: "TSB12250745", pax: 0 },
+    ],
+  };
 
   const allTrips = [...pendingTrips, ...completedTrips];
   const trips = activeTab === "all" ? allTrips : activeTab === "pending" ? pendingTrips : completedTrips;
@@ -283,7 +304,7 @@ export default function TransportCheckInListPage() {
             </div>
 
             {/* ตารางทริป */}
-            <div className="self-stretch overflow-x-auto">
+            <div className="self-stretch overflow-x-auto overflow-y-visible relative z-10">
               <TripTable
                 trips={paginatedTrips.map(
                   (t): Trip => ({
@@ -309,6 +330,8 @@ export default function TransportCheckInListPage() {
                   checkedIn: totalCheckedIn,
                   noShow: totalNoShow,
                 }}
+                waitingHoverByTripCode={waitingHoverByTripCode}
+                completedModalByTripCode={completedModalByTripCode}
                 onTripClick={handleView}
               />
             </div>
