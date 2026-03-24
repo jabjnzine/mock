@@ -253,6 +253,9 @@ export default function BookingDetails({
   const totalPrice = subtotal - discount;
   const totalKB = bookingData.units.reduce((sum, unit) => sum + unit.kb, 0);
   const displayTripType = initialTripType ?? bookingData.tripType;
+  const hideUnitPriceKbTotal = ["TS0001", "TS0002", "TS0003", "TFTEST-01"].includes(
+    bookingId.trim().toUpperCase()
+  );
   const tripDetail = getTripDetail(bookingData.tripCode, tripDetailsVariant === "transport");
   const pickUpDetail =
     tripDetailsVariant === "transport"
@@ -835,12 +838,16 @@ export default function BookingDetails({
                 <div className="flex-1 justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1 text-left">Unit</div>
               </div>
               <div className="flex justify-start items-center gap-20 shrink-0">
-                <div className="w-40 flex justify-center items-center gap-2.5">
-                  <div className="flex-1 text-right justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Price</div>
-                </div>
                 <div className="w-20 justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Quantity</div>
-                <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">KB</div>
-                <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Total</div>
+                {!hideUnitPriceKbTotal && (
+                  <>
+                    <div className="w-40 flex justify-center items-center gap-2.5">
+                      <div className="flex-1 text-right justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Price</div>
+                    </div>
+                    <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">KB</div>
+                    <div className="w-[158px] justify-center text-[#676363] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight line-clamp-1">Total</div>
+                  </>
+                )}
               </div>
             </div>
             {/* Unit rows */}
@@ -850,62 +857,70 @@ export default function BookingDetails({
                   <div className="flex-1 justify-center text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1 text-left">{unit.type}</div>
                 </div>
                 <div className="flex justify-end items-center gap-20 shrink-0">
-                  <div className="flex justify-start items-center gap-2.5">
-                    <div className="justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{unit.price.toLocaleString()}</div>
-                  </div>
                   <div className="w-20 flex justify-start items-center gap-2.5">
                     <div className="w-[100px] flex justify-center items-center gap-2.5">
                       <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{unit.quantity}</div>
                     </div>
                   </div>
-                  <div className="w-[158px] flex justify-start items-center gap-2.5">
-                    <div className="w-[100px] flex justify-center items-center gap-2.5">
-                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.kb.toLocaleString()}</div>
-                    </div>
-                  </div>
-                  <div className="w-[158px] flex justify-start items-center gap-2.5">
-                    <div className="w-[100px] flex justify-center items-center gap-2.5">
-                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.total.toLocaleString()}</div>
-                    </div>
-                  </div>
+                  {!hideUnitPriceKbTotal && (
+                    <>
+                      <div className="flex justify-start items-center gap-2.5">
+                        <div className="justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">{unit.price.toLocaleString()}</div>
+                      </div>
+                      <div className="w-[158px] flex justify-start items-center gap-2.5">
+                        <div className="w-[100px] flex justify-center items-center gap-2.5">
+                          <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.kb.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="w-[158px] flex justify-start items-center gap-2.5">
+                        <div className="w-[100px] flex justify-center items-center gap-2.5">
+                          <div className="flex-1 justify-center text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {unit.total.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
             {/* Separator */}
             <div className="self-stretch h-0 border-t border-[#d0d4d9]" />
-            {/* Sub total */}
-            <div className="self-stretch rounded-lg flex flex-col justify-start items-start">
-              <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
-                <div className="self-stretch inline-flex justify-start items-center gap-2">
-                  <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5">
-                    <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Sub total</div>
-                  </div>
-                  <div className="w-[166px] flex justify-start items-center gap-2.5">
-                    <div className="w-[100px] flex justify-center items-center gap-2.5">
-                      <div className="flex-1 justify-center text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {subtotal.toLocaleString()}</div>
+            {!hideUnitPriceKbTotal && (
+              <>
+                {/* Sub total */}
+                <div className="self-stretch rounded-lg flex flex-col justify-start items-start">
+                  <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
+                    <div className="self-stretch inline-flex justify-start items-center gap-2">
+                      <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5">
+                        <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Sub total</div>
+                      </div>
+                      <div className="w-[166px] flex justify-start items-center gap-2.5">
+                        <div className="w-[100px] flex justify-center items-center gap-2.5">
+                          <div className="flex-1 justify-center text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {subtotal.toLocaleString()}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            {/* Discount */}
-            <div className="self-stretch bg-[#f8fcff] rounded-lg flex flex-col justify-start items-start">
-              <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
-                <div className="self-stretch inline-flex justify-start items-center gap-2">
-                  <div className="w-8 h-8 p-1 bg-[#dceeff] rounded-full flex justify-center items-center gap-2.5 shrink-0">
-                    <Cog6ToothIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
-                  </div>
-                  <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5 min-w-0">
-                    <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Discount</div>
-                  </div>
-                  <div className="w-[166px] flex justify-start items-center gap-2.5 shrink-0">
-                    <div className="w-[166px] py-2 bg-[#f8f8f8] rounded-lg flex justify-center items-center gap-2">
-                      <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">฿ {discount.toLocaleString()}</div>
+                {/* Discount */}
+                <div className="self-stretch bg-[#f8fcff] rounded-lg flex flex-col justify-start items-start">
+                  <div className="self-stretch px-4 py-2 flex flex-col justify-center items-center gap-4">
+                    <div className="self-stretch inline-flex justify-start items-center gap-2">
+                      <div className="w-8 h-8 p-1 bg-[#dceeff] rounded-full flex justify-center items-center gap-2.5 shrink-0">
+                        <Cog6ToothIcon className="w-5 h-5 text-[#265ed6]" strokeWidth={1.5} />
+                      </div>
+                      <div className="flex-1 inline-flex flex-col justify-center items-start gap-0.5 min-w-0">
+                        <div className="self-stretch justify-start text-[#265ed6] text-sm font-medium font-['IBM_Plex_Sans_Thai'] leading-5 tracking-tight">Discount</div>
+                      </div>
+                      <div className="w-[166px] flex justify-start items-center gap-2.5 shrink-0">
+                        <div className="w-[166px] py-2 bg-[#f8f8f8] rounded-lg flex justify-center items-center gap-2">
+                          <div className="flex-1 justify-center text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">฿ {discount.toLocaleString()}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
             {/* Summary boxes */}
             <div className="self-stretch inline-flex justify-end items-center gap-4 flex-wrap">
               <div className="w-40 bg-[#f5fff5] rounded-2xl border border-[#1cb579] inline-flex flex-col justify-start items-start">
@@ -916,22 +931,26 @@ export default function BookingDetails({
                   </div>
                 </div>
               </div>
-              <div className="w-40 bg-[#fffbf4] rounded-2xl border border-[#fe7931] inline-flex flex-col justify-start items-start">
-                <div className="self-stretch py-[11px] flex flex-col justify-center items-center gap-4">
-                  <div className="self-stretch flex flex-col justify-center items-center">
-                    <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total KB</div>
-                    <div className="justify-start text-[#fd5c04] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalKB.toLocaleString()}</div>
+              {!hideUnitPriceKbTotal && (
+                <>
+                  <div className="w-40 bg-[#fffbf4] rounded-2xl border border-[#fe7931] inline-flex flex-col justify-start items-start">
+                    <div className="self-stretch py-[11px] flex flex-col justify-center items-center gap-4">
+                      <div className="self-stretch flex flex-col justify-center items-center">
+                        <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total KB</div>
+                        <div className="justify-start text-[#fd5c04] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalKB.toLocaleString()}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="w-[182px] bg-[#f8fcff] rounded-2xl border border-[#265ed6] inline-flex flex-col justify-start items-start">
-                <div className="px-14 py-[11px] flex flex-col justify-center items-center gap-4">
-                  <div className="self-stretch flex flex-col justify-center items-center">
-                    <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total Price</div>
-                    <div className="justify-start text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalPrice.toLocaleString()}</div>
+                  <div className="w-[182px] bg-[#f8fcff] rounded-2xl border border-[#265ed6] inline-flex flex-col justify-start items-start">
+                    <div className="px-14 py-[11px] flex flex-col justify-center items-center gap-4">
+                      <div className="self-stretch flex flex-col justify-center items-center">
+                        <div className="justify-start text-[#2a2a2a] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight line-clamp-1">Total Price</div>
+                        <div className="justify-start text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight line-clamp-1">฿ {totalPrice.toLocaleString()}</div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
           </div>
         )}

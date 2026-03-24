@@ -223,13 +223,13 @@ const TripTable: React.FC<TripTableProps> = ({
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [hoveredAlertId, setHoveredAlertId] = useState<number | null>(null);
   const [hoveredTooltip, setHoveredTooltip] = useState<{ tripId: number; field: TooltipField } | null>(null);
-  const [hoveredWaitingTooltip, setHoveredWaitingTooltip] = useState<{
-    tripId: number;
-    x: number;
-    y: number;
-    code: string;
-  } | null>(null);
-  const [openCompletedTripCode, setOpenCompletedTripCode] = useState<string | null>(null);
+  // const [hoveredWaitingTooltip, setHoveredWaitingTooltip] = useState<{
+  //   tripId: number;
+  //   x: number;
+  //   y: number;
+  //   code: string;
+  // } | null>(null);
+  // const [openCompletedTripCode, setOpenCompletedTripCode] = useState<string | null>(null);
   const dropdownRefsMap = useRef<Record<number, HTMLDivElement | null>>({});
 
   const tooltipStyle: React.CSSProperties = {
@@ -279,9 +279,9 @@ const TripTable: React.FC<TripTableProps> = ({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const openCompletedTrip = trips.find((trip) => trip.code === openCompletedTripCode);
-  const completedBookings = openCompletedTripCode ? (completedModalByTripCode[openCompletedTripCode] ?? []) : [];
-  const completedTotalPax = completedBookings.reduce((sum, item) => sum + item.pax, 0);
+  // const openCompletedTrip = trips.find((trip) => trip.code === openCompletedTripCode);
+  // const completedBookings = openCompletedTripCode ? (completedModalByTripCode[openCompletedTripCode] ?? []) : [];
+  // const completedTotalPax = completedBookings.reduce((sum, item) => sum + item.pax, 0);
 
   return (
     <>
@@ -305,10 +305,10 @@ const TripTable: React.FC<TripTableProps> = ({
         {/* Header */}
         <div style={{ display: "flex" }}>
           <HeaderCell width={64} borderLeft={false}>#</HeaderCell>
-          <HeaderCell width={158}>Trip Code</HeaderCell>
           <HeaderCell width={108}>Travel Date</HeaderCell>
-          <HeaderCell width={104} align="center">Trip Type</HeaderCell>
+          <HeaderCell width={158}>Trip Code</HeaderCell>
           <HeaderCell width={108}>Trip Round</HeaderCell>
+          <HeaderCell width={104} align="center">Trip Type</HeaderCell>
           <HeaderCell width={266}>Program</HeaderCell>
           <HeaderCell width={206}>Registration</HeaderCell>
           <HeaderCell width={206}>Personnel</HeaderCell>
@@ -328,6 +328,10 @@ const TripTable: React.FC<TripTableProps> = ({
               <div style={{ width: 64, minWidth: 64, height: 64, padding: 8, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <span style={bodyText()}>{idx + 1}</span>
               </div>
+
+              <Cell width={108} bg={bg}>
+                <span style={bodyText()}>{trip.date}</span>
+              </Cell>
 
               <Cell width={158} bg={bg}>
                 <span
@@ -388,15 +392,11 @@ const TripTable: React.FC<TripTableProps> = ({
               </Cell>
 
               <Cell width={108} bg={bg}>
-                <span style={bodyText()}>{trip.date}</span>
+                <span style={bodyText()}>{trip.round}</span>
               </Cell>
 
               <Cell width={104} bg={bg} align="center">
                 {/private/i.test(trip.type) ? <PrivateBadge /> : <JoinInBadge />}
-              </Cell>
-
-              <Cell width={108} bg={bg}>
-                <span style={bodyText()}>{trip.round}</span>
               </Cell>
 
               <Cell width={266} bg={bg}>
@@ -512,36 +512,13 @@ const TripTable: React.FC<TripTableProps> = ({
             <div key={trip.id} style={{ display: "flex", borderTop: "1px solid #D9D9D9", position: "relative" }}>
               <Cell width={80} bg={bg} align="right" borderLeft={false}><span style={bodyText()}>{trip.pax}</span></Cell>
               <Cell width={80} bg={bg} align="right">
-                <div
-                  style={{ position: "relative", width: "100%", display: "flex", justifyContent: "flex-end" }}
-                  onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setHoveredWaitingTooltip({
-                      tripId: trip.id,
-                      code: trip.code,
-                      x: rect.right,
-                      y: rect.bottom + 6,
-                    });
-                  }}
-                  onMouseLeave={() => setHoveredWaitingTooltip((current) => (current?.tripId === trip.id ? null : current))}
-                >
+                <div style={{ position: "relative", width: "100%", display: "flex", justifyContent: "flex-end" }}>
                   <span style={bodyText("#BF8F00")}>{trip.waiting}</span>
                 </div>
               </Cell>
               <Cell width={100} bg={bg} align="right">
-                {(completedModalByTripCode[trip.code]?.length ?? 0) > 0 ? (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    style={{ ...bodyText("#1CB579"), cursor: "pointer", textDecoration: "underline" }}
-                    onClick={() => setOpenCompletedTripCode(trip.code)}
-                    onKeyDown={(e) => e.key === "Enter" && setOpenCompletedTripCode(trip.code)}
-                  >
-                    {trip.checkedIn}
-                  </span>
-                ) : (
-                  <span style={bodyText("#1CB579")}>{trip.checkedIn}</span>
-                )}
+                {/* Completed modal trigger disabled (kept as comment below) */}
+                <span style={bodyText("#1CB579")}>{trip.checkedIn}</span>
               </Cell>
               <Cell width={80} bg={bg} align="right"><span style={bodyText("#D91616")}>{trip.noShow}</span></Cell>
               <div ref={(el) => { dropdownRefsMap.current[trip.id] = el; }} style={{ position: "relative" }}>
@@ -597,6 +574,7 @@ const TripTable: React.FC<TripTableProps> = ({
         </div>
       </div>
     </div>
+    {/* Waiting hover disabled
     {hoveredWaitingTooltip && (waitingHoverByTripCode[hoveredWaitingTooltip.code]?.length ?? 0) > 0 && (
       <div
         style={{
@@ -638,6 +616,8 @@ const TripTable: React.FC<TripTableProps> = ({
         </div>
       </div>
     )}
+    */}
+    {/* Completed modal disabled
     {openCompletedTripCode && openCompletedTrip && (
       <div
         style={{
@@ -716,6 +696,7 @@ const TripTable: React.FC<TripTableProps> = ({
         </div>
       </div>
     )}
+    */}
     </>
   );
 };
