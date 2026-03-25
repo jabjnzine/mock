@@ -70,7 +70,7 @@ interface WaitingBookingHoverItem {
   bookingNo: string;
   pax: number;
 }
-interface CompletedBookingModalItem {
+interface StatusBookingHoverItem {
   bookingNo: string;
   pax: number;
 }
@@ -97,8 +97,8 @@ export default function TransportCheckInListPage() {
       guide: "G. Peter (094-4313995)",
       pax: 20,
       waiting: 5,
-      checkedIn: 2,
-      noShow: 13,
+      checkedIn: 15,
+      noShow: 0,
     },
   ];
 
@@ -109,11 +109,16 @@ export default function TransportCheckInListPage() {
       { bookingNo: "TSB12250745", pax: 3 },
     ],
   };
-  const completedModalByTripCode: Record<string, CompletedBookingModalItem[]> = {
+  const completedHoverByTripCode: Record<string, StatusBookingHoverItem[]> = {
     TF25Z1PW: [
-      { bookingNo: "TSB12250730", pax: 2 },
-      { bookingNo: "TSB12250745", pax: 0 },
+      { bookingNo: "TSB12250760", pax: 5 },
+      { bookingNo: "TSB12250775", pax: 4 },
+      { bookingNo: "TSB12250790", pax: 3 },
+      { bookingNo: "TSB12250805", pax: 3 },
     ],
+  };
+  const noShowHoverByTripCode: Record<string, StatusBookingHoverItem[]> = {
+    TF25Z1PW: [],
   };
 
   const allTrips = [...pendingTrips, ...completedTrips];
@@ -331,7 +336,8 @@ export default function TransportCheckInListPage() {
                   noShow: totalNoShow,
                 }}
                 waitingHoverByTripCode={waitingHoverByTripCode}
-                completedModalByTripCode={completedModalByTripCode}
+                completedHoverByTripCode={completedHoverByTripCode}
+                noShowHoverByTripCode={noShowHoverByTripCode}
                 onTripClick={handleView}
               />
             </div>

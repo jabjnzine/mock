@@ -33,7 +33,8 @@ export interface TripTableProps {
   totals: TripTableTotals;
   onTripClick?: (code: string) => void;
   waitingHoverByTripCode?: Record<string, { bookingNo: string; pax: number }[]>;
-  completedModalByTripCode?: Record<string, { bookingNo: string; pax: number }[]>;
+  completedHoverByTripCode?: Record<string, { bookingNo: string; pax: number }[]>;
+  noShowHoverByTripCode?: Record<string, { bookingNo: string; pax: number }[]>;
 }
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -211,25 +212,26 @@ const Cell: React.FC<CellProps> = ({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 type TooltipField = "program" | "registration" | "personnel" | "guide";
+type StatusHoverType = "waiting" | "completed" | "noShow";
 
 const TripTable: React.FC<TripTableProps> = ({
   trips,
   totals,
   onTripClick,
   waitingHoverByTripCode = {},
-  completedModalByTripCode = {},
+  completedHoverByTripCode = {},
+  noShowHoverByTripCode = {},
 }) => {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const [hoveredAlertId, setHoveredAlertId] = useState<number | null>(null);
   const [hoveredTooltip, setHoveredTooltip] = useState<{ tripId: number; field: TooltipField } | null>(null);
-  const [hoveredWaitingTooltip, setHoveredWaitingTooltip] = useState<{
-    tripId: number;
+  const [hoveredStatusTooltip, setHoveredStatusTooltip] = useState<{
     x: number;
     y: number;
     code: string;
+    status: StatusHoverType;
   } | null>(null);
-  const [openCompletedTripCode, setOpenCompletedTripCode] = useState<string | null>(null);
   const dropdownRefsMap = useRef<Record<number, HTMLDivElement | null>>({});
 
   const tooltipStyle: React.CSSProperties = {
@@ -279,9 +281,15 @@ const TripTable: React.FC<TripTableProps> = ({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const openCompletedTrip = trips.find((trip) => trip.code === openCompletedTripCode);
-  const completedBookings = openCompletedTripCode ? (completedModalByTripCode[openCompletedTripCode] ?? []) : [];
-  const completedTotalPax = completedBookings.reduce((sum, item) => sum + item.pax, 0);
+  const getStatusHoverData = (code: string, status: StatusHoverType) => {
+    if (status === "waiting") return waitingHoverByTripCode[code] ?? [];
+    if (status === "completed") return completedHoverByTripCode[code] ?? [];
+    return noShowHoverByTripCode[code] ?? [];
+  };
+
+  const hoveredStatusData = hoveredStatusTooltip
+    ? getStatusHoverData(hoveredStatusTooltip.code, hoveredStatusTooltip.status)
+    : [];
 
   return (
     <>
@@ -305,10 +313,10 @@ const TripTable: React.FC<TripTableProps> = ({
         {/* Header */}
         <div style={{ display: "flex" }}>
           <HeaderCell width={64} borderLeft={false}>#</HeaderCell>
-          <HeaderCell width={158}>Trip Code</HeaderCell>
           <HeaderCell width={108}>Travel Date</HeaderCell>
-          <HeaderCell width={104} align="center">Trip Type</HeaderCell>
+          <HeaderCell width={158}>Trip Code</HeaderCell>
           <HeaderCell width={108}>Trip Round</HeaderCell>
+          <HeaderCell width={104} align="center">Trip Type</HeaderCell>
           <HeaderCell width={266}>Program</HeaderCell>
           <HeaderCell width={206}>Registration</HeaderCell>
           <HeaderCell width={206}>Personnel</HeaderCell>
@@ -328,6 +336,10 @@ const TripTable: React.FC<TripTableProps> = ({
               <div style={{ width: 64, minWidth: 64, height: 64, padding: 8, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <span style={bodyText()}>{idx + 1}</span>
               </div>
+
+              <Cell width={108} bg={bg}>
+                <span style={bodyText()}>{trip.date}</span>
+              </Cell>
 
               <Cell width={158} bg={bg}>
                 <span
@@ -388,15 +400,11 @@ const TripTable: React.FC<TripTableProps> = ({
               </Cell>
 
               <Cell width={108} bg={bg}>
-                <span style={bodyText()}>{trip.date}</span>
+                <span style={bodyText()}>{trip.round}</span>
               </Cell>
 
               <Cell width={104} bg={bg} align="center">
                 {/private/i.test(trip.type) ? <PrivateBadge /> : <JoinInBadge />}
-              </Cell>
-
-              <Cell width={108} bg={bg}>
-                <span style={bodyText()}>{trip.round}</span>
               </Cell>
 
               <Cell width={266} bg={bg}>
@@ -515,35 +523,56 @@ const TripTable: React.FC<TripTableProps> = ({
                 <div
                   style={{ position: "relative", width: "100%", display: "flex", justifyContent: "flex-end" }}
                   onMouseEnter={(e) => {
+                    if ((waitingHoverByTripCode[trip.code]?.length ?? 0) === 0) return;
                     const rect = e.currentTarget.getBoundingClientRect();
-                    setHoveredWaitingTooltip({
-                      tripId: trip.id,
+                    setHoveredStatusTooltip({
                       code: trip.code,
+                      status: "waiting",
                       x: rect.right,
                       y: rect.bottom + 6,
                     });
                   }}
-                  onMouseLeave={() => setHoveredWaitingTooltip((current) => (current?.tripId === trip.id ? null : current))}
+                  onMouseLeave={() => setHoveredStatusTooltip((current) => (current?.code === trip.code && current.status === "waiting" ? null : current))}
                 >
                   <span style={bodyText("#BF8F00")}>{trip.waiting}</span>
                 </div>
               </Cell>
               <Cell width={100} bg={bg} align="right">
-                {(completedModalByTripCode[trip.code]?.length ?? 0) > 0 ? (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    style={{ ...bodyText("#1CB579"), cursor: "pointer", textDecoration: "underline" }}
-                    onClick={() => setOpenCompletedTripCode(trip.code)}
-                    onKeyDown={(e) => e.key === "Enter" && setOpenCompletedTripCode(trip.code)}
-                  >
-                    {trip.checkedIn}
-                  </span>
-                ) : (
+                <div
+                  style={{ position: "relative", width: "100%", display: "flex", justifyContent: "flex-end" }}
+                  onMouseEnter={(e) => {
+                    if ((completedHoverByTripCode[trip.code]?.length ?? 0) === 0) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredStatusTooltip({
+                      code: trip.code,
+                      status: "completed",
+                      x: rect.right,
+                      y: rect.bottom + 6,
+                    });
+                  }}
+                  onMouseLeave={() => setHoveredStatusTooltip((current) => (current?.code === trip.code && current.status === "completed" ? null : current))}
+                >
                   <span style={bodyText("#1CB579")}>{trip.checkedIn}</span>
-                )}
+                </div>
               </Cell>
-              <Cell width={80} bg={bg} align="right"><span style={bodyText("#D91616")}>{trip.noShow}</span></Cell>
+              <Cell width={80} bg={bg} align="right">
+                <div
+                  style={{ position: "relative", width: "100%", display: "flex", justifyContent: "flex-end" }}
+                  onMouseEnter={(e) => {
+                    if ((noShowHoverByTripCode[trip.code]?.length ?? 0) === 0) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoveredStatusTooltip({
+                      code: trip.code,
+                      status: "noShow",
+                      x: rect.right,
+                      y: rect.bottom + 6,
+                    });
+                  }}
+                  onMouseLeave={() => setHoveredStatusTooltip((current) => (current?.code === trip.code && current.status === "noShow" ? null : current))}
+                >
+                  <span style={bodyText("#D91616")}>{trip.noShow}</span>
+                </div>
+              </Cell>
               <div ref={(el) => { dropdownRefsMap.current[trip.id] = el; }} style={{ position: "relative" }}>
                 <div
                   role="button"
@@ -597,12 +626,12 @@ const TripTable: React.FC<TripTableProps> = ({
         </div>
       </div>
     </div>
-    {hoveredWaitingTooltip && (waitingHoverByTripCode[hoveredWaitingTooltip.code]?.length ?? 0) > 0 && (
+    {hoveredStatusTooltip && hoveredStatusData.length > 0 && (
       <div
         style={{
           position: "fixed",
-          top: hoveredWaitingTooltip.y,
-          left: hoveredWaitingTooltip.x,
+          top: hoveredStatusTooltip.y,
+          left: hoveredStatusTooltip.x,
           transform: "translateX(-100%)",
           minWidth: 220,
           maxWidth: 320,
@@ -616,9 +645,9 @@ const TripTable: React.FC<TripTableProps> = ({
         }}
       >
         <div style={{ padding: "6px 0", background: "#FFFFFF" }}>
-          {waitingHoverByTripCode[hoveredWaitingTooltip.code].map((booking) => (
+          {hoveredStatusData.map((booking) => (
             <div
-              key={`${hoveredWaitingTooltip.code}-${booking.bookingNo}`}
+              key={`${hoveredStatusTooltip.code}-${hoveredStatusTooltip.status}-${booking.bookingNo}`}
               style={{
                 padding: "6px 12px",
                 display: "flex",
@@ -635,81 +664,6 @@ const TripTable: React.FC<TripTableProps> = ({
               </span>
             </div>
           ))}
-        </div>
-      </div>
-    )}
-    {openCompletedTripCode && openCompletedTrip && (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          zIndex: 10000,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-        onClick={() => setOpenCompletedTripCode(null)}
-      >
-        <div
-          className="w-[268px] bg-white rounded-2xl shadow-[0px_3px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative shrink-0 self-stretch pl-6 pr-6 pt-6 pb-3 bg-white inline-flex justify-center items-start gap-2.5">
-            <div className="flex-1 inline-flex flex-col justify-start items-center gap-3">
-              <div className="self-stretch inline-flex justify-center items-center gap-3">
-                <div className="text-center justify-start text-zinc-800 text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                  Completed
-                </div>
-              </div>
-              <div className="w-52 h-0 outline outline-4 outline-offset-[-2px] outline-blue-300" />
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpenCompletedTripCode(null)}
-              className="absolute right-4 top-4 size-8 flex items-center justify-center rounded hover:bg-gray-100"
-              aria-label="Close"
-            >
-              <span className="text-3xl leading-none text-zinc-700">×</span>
-            </button>
-          </div>
-
-          <div className="p-6 inline-flex flex-col justify-center items-center gap-3">
-            <div className="self-stretch justify-start text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-              Trip Code : {openCompletedTrip.code}
-            </div>
-            <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.50px] outline-[#d9d9d9]" />
-            <div className="flex flex-col justify-center items-start gap-1">
-              <div className="self-stretch inline-flex justify-start items-center gap-2.5">
-                <div className="justify-start text-[#2a2a2a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                  Booking :
-                </div>
-              </div>
-              {completedBookings.map((booking, index) => (
-                <div
-                  key={`${openCompletedTrip.code}-${booking.bookingNo}-${index}`}
-                  className="inline-flex justify-start items-center gap-2.5"
-                >
-                  <div className="w-[200px] justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                    {booking.bookingNo}
-                  </div>
-                  <div className="justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                    {booking.pax}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="self-stretch h-0 outline outline-1 outline-offset-[-0.50px] outline-[#d9d9d9]" />
-            <div className="inline-flex justify-start items-center gap-2.5">
-              <div className="w-[200px] justify-start text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                Total :
-              </div>
-              <div className="justify-start text-[#1cb579] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                {completedTotalPax}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )}
