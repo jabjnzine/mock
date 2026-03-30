@@ -1,3 +1,6 @@
+import { CHECK_IN_TRIP_SEEDS } from "@/app/lib/check-in-trips-seed";
+import { getTripDetail } from "@/app/lib/check-in-trip";
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 export type TripStatus = "Pending" | "Approved" | "Completed";
 export type TripType   = "Join In" | "Private";
@@ -63,14 +66,50 @@ export interface ExtraAdvanceItem {
   checked: boolean;
 }
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-export const INIT_TRIPS: Trip[] = [
-  { id:1, tripCode:"EC26HXDU", tripType:"Join In",  program:"Damnoen + Buffalo Cafe + Maeklong",    tripRound:"07:00", date:"05/03/2026", option:"With Tickets",    guide:"G. Jannie", guide2:"G. Jame",  bankName:"ธ.กสิกรไทย",   bankNo:"158-8-13693-7",  paxAdv:9,  checkedIn:9,  noShow:0, status:"Pending",   vehicle:"BUS (30)"                  },
-  { id:2, tripCode:"EC26QGZI", tripType:"Private",  program:"Maeklong & Amphawa",                   tripRound:"09:00", date:"05/03/2026", option:"Without Tickets", guide:"G. Lita",   guide2:"-",        bankName:"ธ.กสิกรไทย",   bankNo:"015-8-20863-6",  paxAdv:8,  checkedIn:8,  noShow:0, status:"Approved",  vehicle:"Speed Catamaran 2 engines" },
-  { id:3, tripCode:"EC26XF0V", tripType:"Join In",  program:"Grand Palace, Wat Pho Half Day Tour",  tripRound:"07:30", date:"06/03/2026", option:"With Tickets",    guide:"G. Sammy",  guide2:"G. Jame",  bankName:"ธ.ไทยพาณิชย์", bankNo:"736-2-889-33-7", paxAdv:36, checkedIn:36, noShow:0, status:"Completed", vehicle:"BUS (45)"                  },
-  { id:4, tripCode:"EC26RXD0", tripType:"Private",  program:"Discover Kanchanaburi Tour",           tripRound:"06:30", date:"06/03/2026", option:"With Tickets",    guide:"G. Jame",   guide2:"-",        bankName:"ธ.กสิกรไทย",   bankNo:"002-2-69648-3",  paxAdv:8,  checkedIn:8,  noShow:0, status:"Pending",   vehicle:"VAN (12)"                  },
-  { id:5, tripCode:"EC26GOSD", tripType:"Join In",  program:"Floating Market + Nakhorn Prathom",   tripRound:"07:00", date:"07/03/2026", option:"Without Tickets", guide:"G. Jannie", guide2:"-",        bankName:"ธ.กสิกรไทย",   bankNo:"161-2-66949-6",  paxAdv:10, checkedIn:10, noShow:0, status:"Pending",   vehicle:"BUS (30)"                  },
+// ─── MOCK DATA (tripCode / pax / วันที่ อ้างอิง Check-in Excursion + Transport) ─
+const BANK_ROTATION: { bankName: string; bankNo: string }[] = [
+  { bankName: "ธ.กสิกรไทย", bankNo: "158-8-13693-7" },
+  { bankName: "ธ.กสิกรไทย", bankNo: "015-8-20863-6" },
+  { bankName: "ธ.ไทยพาณิชย์", bankNo: "736-2-889-33-7" },
+  { bankName: "ธ.กสิกรไทย", bankNo: "002-2-69648-3" },
+  { bankName: "ธ.กสิกรไทย", bankNo: "161-2-66949-6" },
 ];
+
+function formatGuideLabel(g: { name: string; phone: string }): string {
+  return g.phone ? `${g.name} (${g.phone})` : g.name;
+}
+
+function buildInitTripsFromCheckIn(): Trip[] {
+  return CHECK_IN_TRIP_SEEDS.map((row, i) => {
+    const isTransport = row.source === "transport";
+    const detail = getTripDetail(row.tripCode, isTransport);
+    const g0 = detail.guides[0];
+    const g1 = detail.guides[1];
+    const bank = BANK_ROTATION[i % BANK_ROTATION.length];
+    const tripRound = row.tripRound.replace(/\s*:\s*/g, ":");
+
+    return {
+      id: i + 1,
+      tripCode: row.tripCode,
+      tripType: row.tripType as TripType,
+      program: row.program,
+      tripRound,
+      date: row.travelDate,
+      option: "With Tickets",
+      guide: g0 ? formatGuideLabel(g0) : "-",
+      guide2: g1 ? formatGuideLabel(g1) : "-",
+      bankName: bank.bankName,
+      bankNo: bank.bankNo,
+      paxAdv: row.pax,
+      checkedIn: row.checkedIn,
+      noShow: row.noShow,
+      status: row.paymentStatus as TripStatus,
+      vehicle: detail.vehicleName,
+    };
+  });
+}
+
+export const INIT_TRIPS: Trip[] = buildInitTripsFromCheckIn();
 
 // ─── SECTION META ─────────────────────────────────────────────────────────────
 export const SEC: Record<SectionKey, { label: string; icon: string; bg: string; color: string; border: string; accent: string }> = {
@@ -94,7 +133,7 @@ export function initAdvSections(trip: Trip): AdvanceSections {
   return {
     guide:     [
       { id:"g1", name:"Guide freelancer (โกด์จ้างรายวัน) 1", costType:"All",    costUnit:2000, pax:p, advCost:2000,   actPax:a, actCost:2000,   checked:true  },
-      { id:"g2", name:"Guide freelancer (โกด์จ้างรายวัน) 2", costType:"Fix",    costUnit:800,  pax:p, advCost:800,    actPax:a, actCost:800,    checked:false },
+      { id:"g2", name:"Guide freelancer (โกด์จ้างรายวัน) 2", costType:"Fix",    costUnit:800,  pax:p, advCost:800,    actPax:a, actCost:800,    checked:true  },
     ],
     vehicle:   [
       { id:"v1", name:"ค่าน้ำมัน",                           costType:"All",    costUnit:500,  pax:p, advCost:500,    actPax:a, actCost:500,    checked:true  },

@@ -6,6 +6,8 @@ import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import { INIT_TRIPS, calcAdvTotal, calcExtraAdvTotal, Trip } from "../lib/payment-data";
+import TripTypeBadge from "../components/TripTypeBadge";
+import { PAYMENT_BANK_COLOR, formatPaymentMoney } from "../components/payment-table-styles";
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconAmountTrip = () => (
@@ -70,73 +72,48 @@ function ActionMenu({ tripCode, onApprove }: { tripCode: string; onApprove: () =
   );
 }
 
-// ─── TRIP TYPE BADGE (อิงจาก Check-in list) ─────────────────────────────────
-const JoinInTypeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 20 20" fill="none" className="shrink-0">
-    <path d="M7.63411 9.05866C7.55078 9.05033 7.45078 9.05033 7.35911 9.05866C5.37578 8.99199 3.80078 7.36699 3.80078 5.36699C3.80078 3.32533 5.45078 1.66699 7.50078 1.66699C9.54245 1.66699 11.2008 3.32533 11.2008 5.36699C11.1924 7.36699 9.61745 8.99199 7.63411 9.05866Z" stroke="#265ED6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M13.6747 3.33301C15.2914 3.33301 16.5914 4.64134 16.5914 6.24967C16.5914 7.82467 15.3414 9.10801 13.7831 9.16634C13.7164 9.15801 13.6414 9.15801 13.5664 9.16634" stroke="#265ED6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M3.46563 12.133C1.44896 13.483 1.44896 15.683 3.46563 17.0247C5.75729 18.558 9.51563 18.558 11.8073 17.0247C13.824 15.6747 13.824 13.4747 11.8073 12.133C9.52396 10.608 5.76562 10.608 3.46563 12.133Z" stroke="#265ED6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M15.2852 16.667C15.8852 16.542 16.4518 16.3003 16.9185 15.942C18.2185 14.967 18.2185 13.3587 16.9185 12.3837C16.4602 12.0337 15.9018 11.8003 15.3102 11.667" stroke="#265ED6" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const PrivateTypeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={20} height={20} viewBox="0 0 24 24" fill="none" className="shrink-0">
-    <path d="M12.1586 10.87C12.0586 10.86 11.9386 10.86 11.8286 10.87C9.44859 10.79 7.55859 8.84 7.55859 6.44C7.55859 3.99 9.53859 2 11.9986 2C14.4486 2 16.4386 3.99 16.4386 6.44C16.4286 8.84 14.5386 10.79 12.1586 10.87Z" stroke="#FFC107" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M12.0008 21.8097C10.1808 21.8097 8.37078 21.3497 6.99078 20.4297C4.57078 18.8097 4.57078 16.1697 6.99078 14.5597C9.74078 12.7197 14.2508 12.7197 17.0008 14.5597" stroke="#FFC107" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-function TripTypeBadge({ tripType }: { tripType: string }) {
-  if (/private/i.test(tripType)) {
-    return (
-      <div className="px-2 py-1 rounded-[30px] inline-flex items-center justify-center gap-1 bg-[#FFFBEB] border border-[#FFC107]">
-        <PrivateTypeIcon />
-        <span className="text-center text-sm font-normal text-[#FFC107] font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
-          Private
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="inline-flex items-center gap-1 px-2 py-1 bg-[#F8FCFF] rounded-[30px] border border-[#265ED6]">
-      <JoinInTypeIcon />
-      <span className="w-12 text-center text-[#265ED6] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
-        Join In
-      </span>
-    </div>
-  );
-}
-
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 type SlipInfo = { preview: boolean; extraCount?: number };
 
 const ROW_SLIPS: Record<string, SlipInfo> = {
-  EC26HXDU: { preview: false },
-  EC26QGZI: { preview: false },
-  EC26XF0V: { preview: true },
-  EC26RXD0: { preview: true, extraCount: 2 },
-  EC26GOSD: { preview: false },
+  EC25Z1PW: { preview: false },
+  EC2581C4: { preview: true },
+  EC25DM35: { preview: false },
+  EC255D2C: { preview: true },
+  EC25PV01: { preview: false },
+  EC25PV02: { preview: true, extraCount: 2 },
+  EC25ABC1: { preview: true },
+  TF25Z1PW: { preview: false },
 };
 
-const BANK_COLOR: Record<string, string> = {
-  "ธ.กสิกรไทย": "#2BB673",
-  "ธ.ไทยพาณิชย์": "#553C9A",
-};
-
-const formatMoney = (value: number) =>
-  value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const BANK_COLOR = PAYMENT_BANK_COLOR;
+const formatMoney = formatPaymentMoney;
 
 export default function AdvanceListPage() {
   const [trips, setTrips] = useState(INIT_TRIPS);
   const [activeTab, setActiveTab] = useState<"Pending" | "Completed">("Pending");
   const [search, setSearch] = useState("");
-  const [date, setDate]     = useState("17/03/2026");
+  const [date, setDate]     = useState("17/12/2025");
 
   const pending   = trips;
   const completed = trips.filter(t => t.status === "Approved" || t.status === "Completed");
   const source    = activeTab === "Pending" ? pending : completed;
+  const showSlipColumn = activeTab === "Completed";
+
+  const tableHeaders = [
+    "#",
+    "Trip Code",
+    "Travel Date",
+    "Trip Type",
+    "Trip Round",
+    "Program",
+    "Guide",
+    "Book Bank",
+    "Pax",
+    "Advance",
+    ...(showSlipColumn ? ["Slip" as const] : []),
+    "Action",
+  ] as const;
 
   const shown = source.filter(t =>
     t.tripCode.toLowerCase().includes(search.toLowerCase()) ||
@@ -297,14 +274,14 @@ export default function AdvanceListPage() {
                   <col className="w-[200px]" />
                   <col className="w-[68px]" />
                   <col className="w-[150px]" />
-                  <col className="w-20" />
+                  {showSlipColumn ? <col className="w-20" /> : null}
                   <col className="w-20" />
                 </colgroup>
                 <thead>
                   <tr className="bg-[#142B41] text-white h-11">
-                    {["#", "Trip Code", "Travel Date", "Trip Type", "Trip Round", "Program", "Guide", "Book Bank", "Pax", "Advance", "Slip", "Action"].map((h, i) => (
+                    {tableHeaders.map((h, i) => (
                       <th
-                        key={h}
+                        key={`${h}-${i}`}
                         className={`p-2 h-11 text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap ${
                           i > 0 ? "border-l border-white" : ""
                         } ${h === "Advance" ? "bg-[#265ED6]" : ""} ${
@@ -323,7 +300,7 @@ export default function AdvanceListPage() {
                 <tbody>
                   {shown.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="py-12 text-center text-gray-400">ไม่พบข้อมูล</td>
+                      <td colSpan={tableHeaders.length} className="py-12 text-center text-gray-400">ไม่พบข้อมูล</td>
                     </tr>
                   )}
                   {shown.map((t: Trip, i: number) => {
@@ -371,19 +348,21 @@ export default function AdvanceListPage() {
                         <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">
                           {formatMoney(adv)}
                         </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                          {!slip.preview ? (
-                            <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-white mx-auto" />
-                          ) : (
-                            <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-[#ECECEC] relative mx-auto">
-                              {slip.extraCount ? (
-                                <span className="absolute inset-0 bg-black/45 text-white text-sm font-semibold flex items-center justify-center">
-                                  +{slip.extraCount}
-                                </span>
-                              ) : null}
-                            </div>
-                          )}
-                        </td>
+                        {showSlipColumn ? (
+                          <td className="p-2 h-16 border-l border-[#D9D9D9]">
+                            {!slip.preview ? (
+                              <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-white mx-auto" />
+                            ) : (
+                              <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-[#ECECEC] relative mx-auto">
+                                {slip.extraCount ? (
+                                  <span className="absolute inset-0 bg-black/45 text-white text-sm font-semibold flex items-center justify-center">
+                                    +{slip.extraCount}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )}
+                          </td>
+                        ) : null}
                         <td className="p-2 h-16 border-l border-[#D9D9D9] text-center">
                           <ActionMenu
                             tripCode={t.tripCode}
@@ -401,7 +380,8 @@ export default function AdvanceListPage() {
                       <td className="px-4 py-3 text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight text-right whitespace-nowrap">
                         {formatMoney(shownTotal)}
                       </td>
-                      <td colSpan={2} />
+                      {showSlipColumn ? <td /> : null}
+                      <td />
                     </tr>
                   </tfoot>
                 )}
