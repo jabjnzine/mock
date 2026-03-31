@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useLayoutEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../../components/Sidebar";
@@ -9,34 +9,119 @@ import Footer from "../../../components/Footer";
 import {
   INIT_TRIPS, SEC, STATUS_STYLE, initAdvSections,
   AdvanceSections, AdvanceItem, ExtraAdvanceItem, SectionKey, CostType,
+  Trip,
 } from "../../lib/payment-data";
+import { formatPaymentMoney, PAYMENT_BANK_COLOR } from "../../components/payment-table-styles";
+import { AttachmentSlipModal } from "../../components/AttachmentSlipModal";
+import {
+  advanceGetClientTripStatus,
+  advanceGetTripAdvanceDraft,
+  advanceGetTripSlipPreviewSrc,
+  advanceMarkTripStatus,
+  advanceRequestCompletedTab,
+  advanceSetTripAdvanceDraft,
+  advanceSetTripAdvanceTotals,
+  advanceSetTripSlipPreviewSrc,
+} from "../../lib/advance-client-state";
 
 type PageMode = "view" | "edit";
 
-// ─── APPROVE MODAL ────────────────────────────────────────────────────────────
-function ApproveModal({ tripCode, program, tripRound, guide, totalAdv, onClose, onConfirm }: {
-  tripCode: string; program: string; tripRound: string; guide: string; totalAdv: number;
-  onClose: () => void; onConfirm: () => void;
-}) {
+// ─── APPROVE: WARNING → SUCCESS (ลำดับตามดีไซน์) ───────────────────────────────
+function ApproveWarningIllustration() {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-7 w-[500px] max-w-[95vw] shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-gray-800">ยืนยัน Approve</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    <svg width={96} height={96} viewBox="0 0 96 96" fill="none" className="shrink-0" aria-hidden>
+      <circle cx={48} cy={48} r={36} fill="#FFF8E1" stroke="#F9A825" strokeWidth={2}/>
+      <circle cx={34} cy={40} r={4} fill="#F9A825"/>
+      <circle cx={62} cy={40} r={4} fill="#F9A825"/>
+      <path d="M38 52c4 8 16 8 20 0" stroke="#F9A825" strokeWidth={2.2} strokeLinecap="round"/>
+      <path d="M52 28h8" stroke="#F9A825" strokeWidth={2.5} strokeLinecap="round"/>
+      <text x={72} y={28} fill="#F9A825" fontSize={14} fontWeight={700}>!</text>
+      <circle cx={22} cy={28} r={3} fill="#F9A825"/>
+      <circle cx={76} cy={58} r={2.5} fill="#F9A825"/>
+    </svg>
+  );
+}
+
+function ApproveSuccessIllustration() {
+  return (
+    <svg width={96} height={96} viewBox="0 0 96 96" fill="none" className="shrink-0" aria-hidden>
+      <circle cx={48} cy={48} r={36} fill="#ECFDF5" stroke="#22C55E" strokeWidth={2}/>
+      <path d="M32 48l10 10 22-22" stroke="#16A34A" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={22} cy={32} r={2.5} fill="#22C55E"/>
+      <circle cx={74} cy={36} r={2.5} fill="#22C55E"/>
+      <path d="M24 58l4 4M70 62l4-4" stroke="#86EFAC" strokeWidth={2} strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function ApproveWarningModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-70 p-4 font-['IBM_Plex_Sans_Thai']"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-[0px_8px_32px_rgba(0,0,0,0.12)] max-w-[400px] w-full px-8 pt-10 pb-8 flex flex-col items-center gap-3"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="approve-warning-title"
+        onClick={e => e.stopPropagation()}
+      >
+        <ApproveWarningIllustration />
+        <h2 id="approve-warning-title" className="text-xl font-bold text-[#F9A825] leading-7 tracking-tight text-center">
+          Warning
+        </h2>
+        <p className="text-center text-[#2a2a2a] text-base font-normal leading-6 tracking-tight px-1">
+          Do you want to Approve ?
+        </p>
+        <div className="flex flex-row justify-center items-stretch gap-3 w-full mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 min-w-0 px-5 py-2.5 rounded-[100px] border border-[#265ed6] bg-white text-[#265ed6] text-base font-medium leading-6 tracking-tight hover:bg-blue-50/60"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 min-w-0 px-5 py-2.5 rounded-[100px] bg-[#265ed6] text-white text-base font-medium leading-6 tracking-tight hover:opacity-95"
+          >
+            Ok
+          </button>
         </div>
-        <div className="text-sm text-gray-600 space-y-1.5 leading-relaxed mb-5">
-          <div>Trip Code: <strong>{tripCode}</strong></div>
-          <div>Program: <strong>{program}</strong></div>
-          <div>Trip Round: <strong>{tripRound}</strong></div>
-          <div>Guide: <strong>{guide}</strong></div>
-          <div>Total Advance: <strong className="text-blue-700">฿{totalAdv.toLocaleString()}</strong></div>
-          <div className="mt-3 p-3 bg-green-50 rounded-lg text-xs text-green-700">✅ Approve แล้ว ข้อมูลจะส่งไปยัง Expense</div>
-        </div>
-        <div className="flex gap-3 justify-end">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600">✓ Confirm Approve</button>
-        </div>
+      </div>
+    </div>
+  );
+}
+
+function ApproveSuccessModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-70 p-4 font-['IBM_Plex_Sans_Thai']"
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-[0px_8px_32px_rgba(0,0,0,0.12)] max-w-[400px] w-full px-8 pt-10 pb-8 flex flex-col items-center gap-3"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="approve-success-title"
+      >
+        <ApproveSuccessIllustration />
+        <h2 id="approve-success-title" className="text-xl font-bold text-[#16A34A] leading-7 tracking-tight text-center">
+          Success
+        </h2>
+        <p className="text-center text-[#2a2a2a] text-base font-normal leading-6 tracking-tight px-1">
+          Approve Successful
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 w-full max-w-[200px] px-5 py-2.5 rounded-[100px] bg-[#265ed6] text-white text-base font-medium leading-6 tracking-tight hover:opacity-95"
+        >
+          Ok
+        </button>
       </div>
     </div>
   );
@@ -60,11 +145,6 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   other:     "Other Expense",
   allowance: "Allowance",
   extra:     "Extra Cost",
-};
-
-const BANK_COLOR: Record<string, string> = {
-  "ธ.กสิกรไทย": "#2BB673",
-  "ธ.ไทยพาณิชย์": "#553C9A",
 };
 
 type ExtraModalRow = {
@@ -393,6 +473,30 @@ function ExtraAdvanceIconDocPlus() {
   );
 }
 
+function AttachmentPaperclipIcon() {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#265ed6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
+function AttachmentAddSlipButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex shrink-0 items-center gap-2 rounded-[100px] border border-[#265ed6] bg-white px-5 py-2 text-base font-medium leading-6 tracking-tight text-[#265ed6] hover:bg-blue-50/60 transition-colors"
+    >
+      <svg width={22} height={22} viewBox="0 0 24 24" fill="none" className="shrink-0 text-[#265ed6]" aria-hidden>
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth={1.5} />
+        <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+      </svg>
+      Add Slip
+    </button>
+  );
+}
+
 /** ตาราง Extra Advance — โครงสร้างตามดีไซน์ (หัวคอลัมน์ Extra Advance สีส้ม, Total สีส้ม, ปุ่มลบ) */
 function ExtraAdvanceDeleteIconButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
@@ -469,6 +573,9 @@ function ExtraAdvanceTable({
     );
   }
 
+  const isView = variant === "view";
+  const idxColClass = isView ? "w-12" : "w-16";
+
   return (
     <div className="self-stretch flex flex-col justify-start items-start gap-3 w-full font-['IBM_Plex_Sans_Thai']">
       <div className="self-stretch rounded-lg outline-1 -outline-offset-1 outline-[#d9d9d9] flex flex-col justify-center items-start overflow-hidden">
@@ -476,17 +583,21 @@ function ExtraAdvanceTable({
           <div className="self-stretch bg-white rounded-lg outline-1 -outline-offset-1 outline-[#d9d9d9] flex flex-col justify-start items-start">
             <div className="self-stretch flex flex-col justify-start items-start">
               <div className="self-stretch rounded-tl-lg rounded-tr-lg inline-flex justify-start items-start overflow-hidden">
-                <div className="w-16 h-11 p-2 bg-[#142b41] flex justify-center items-center gap-2.5 overflow-hidden">
-                  <div className="w-[34px] flex justify-start items-center gap-1">
-                    <input
-                      type="checkbox"
-                      readOnly
-                      checked
-                      aria-hidden
-                      className="w-5 h-5 rounded border-0 accent-[#265ed6] shrink-0 cursor-default"
-                    />
+                <div className={`${idxColClass} h-11 p-2 bg-[#142b41] flex justify-center items-center gap-2.5 overflow-hidden shrink-0`}>
+                  {isView ? (
                     <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">#</div>
-                  </div>
+                  ) : (
+                    <div className="w-[34px] flex justify-start items-center gap-1">
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked
+                        aria-hidden
+                        className="w-5 h-5 rounded border-0 accent-[#265ed6] shrink-0 cursor-default"
+                      />
+                      <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">#</div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden min-w-0">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Items</div>
@@ -503,27 +614,33 @@ function ExtraAdvanceTable({
                 <div className="w-20 h-11 p-2 bg-[#142b41] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden shrink-0">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Pax</div>
                 </div>
-                <div className="w-[162px] h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden shrink-0">
+                <div className={`w-[162px] h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden shrink-0 ${isView ? "rounded-tr-lg" : ""}`}>
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Extra Advance</div>
                 </div>
-                <div className="w-10 h-11 p-2 bg-[#142b41] shrink-0" />
+                {!isView && <div className="w-10 h-11 p-2 bg-[#142b41] shrink-0" />}
               </div>
             </div>
 
             <div className="self-stretch flex flex-col justify-start items-start">
               {rows.map(({ item: i, fromModal }, idx) => (
                 <div key={i.id} className="self-stretch inline-flex justify-start items-stretch min-h-[62px]">
-                  <div className="w-16 min-h-[62px] p-2 bg-white flex justify-center items-center gap-1 overflow-hidden shrink-0">
-                    <div className="w-[34px] flex justify-start items-center gap-1">
-                      <input
-                        type="checkbox"
-                        readOnly
-                        checked={i.checked}
-                        aria-label={`เลือกแถว ${idx + 1}`}
-                        className="w-5 h-5 rounded border-0 accent-[#265ed6] shrink-0 cursor-default"
-                      />
-                      <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{idx + 1}</div>
-                    </div>
+                  <div className={`${idxColClass} min-h-[62px] p-2 bg-white flex justify-center items-center gap-1 overflow-hidden shrink-0`}>
+                    {isView ? (
+                      <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
+                        {idx + 1}
+                      </div>
+                    ) : (
+                      <div className="w-[34px] flex justify-start items-center gap-1">
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={i.checked}
+                          aria-label={`เลือกแถว ${idx + 1}`}
+                          className="w-5 h-5 rounded border-0 accent-[#265ed6] shrink-0 cursor-default"
+                        />
+                        <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{idx + 1}</div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-h-[62px] min-w-0 p-2 bg-white border-l border-[#d9d9d9] inline-flex flex-col justify-center items-start gap-1">
                     {rowName(i)}
@@ -546,9 +663,13 @@ function ExtraAdvanceTable({
                           }
                           className={`self-stretch px-3 py-2 w-full min-w-0 ${cellOutline} text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight outline-none`}
                         />
+                      ) : isView ? (
+                        <div className="w-full text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
+                          {formatMoney0(i.costUnit)}
+                        </div>
                       ) : (
                         <div className={`self-stretch px-3 py-2 w-full ${cellOutline} inline-flex justify-end items-center`}>
-                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">
+                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
                             {formatMoney0(i.costUnit)}
                           </div>
                         </div>
@@ -566,9 +687,13 @@ function ExtraAdvanceTable({
                           }
                           className={`self-stretch px-3 py-2 w-full min-w-0 ${cellOutline} text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight outline-none`}
                         />
+                      ) : isView ? (
+                        <div className="w-full text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
+                          {i.pax}
+                        </div>
                       ) : (
                         <div className={`self-stretch px-3 py-2 w-full ${cellOutline} inline-flex justify-end items-center`}>
-                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">
+                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
                             {i.pax}
                           </div>
                         </div>
@@ -585,40 +710,46 @@ function ExtraAdvanceTable({
                           }
                           className={`self-stretch px-3 py-2 w-full min-w-0 ${cellOutline} text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight outline-none`}
                         />
+                      ) : isView ? (
+                        <div className="w-full text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
+                          {formatMoney0(i.advCost || 0)}
+                        </div>
                       ) : (
                         <div className={`self-stretch px-3 py-2 w-full ${cellOutline} inline-flex justify-end items-center`}>
-                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">
+                          <div className="text-right text-[#2a2a2a] text-base font-normal leading-6 tracking-tight tabular-nums">
                             {formatMoney0(i.advCost || 0)}
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="min-h-[62px] p-2 bg-white border-l border-[#d9d9d9] flex justify-center items-center w-10 shrink-0">
-                    {fromModal && onRemoveModal ? (
-                      <ExtraAdvanceDeleteIconButton onClick={() => onRemoveModal(i.id)} label="ลบรายการ Extra Advance" />
-                    ) : !fromModal && onRemoveSeed ? (
-                      <ExtraAdvanceDeleteIconButton onClick={() => onRemoveSeed(i.id)} label="นำรายการออกจากตาราง" />
-                    ) : (
-                      <span className="w-6 h-6 inline-block" />
-                    )}
-                  </div>
+                  {!isView && (
+                    <div className="min-h-[62px] p-2 bg-white border-l border-[#d9d9d9] flex justify-center items-center w-10 shrink-0">
+                      {fromModal && onRemoveModal ? (
+                        <ExtraAdvanceDeleteIconButton onClick={() => onRemoveModal(i.id)} label="ลบรายการ Extra Advance" />
+                      ) : !fromModal && onRemoveSeed ? (
+                        <ExtraAdvanceDeleteIconButton onClick={() => onRemoveSeed(i.id)} label="นำรายการออกจากตาราง" />
+                      ) : (
+                        <span className="w-6 h-6 inline-block" />
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
             <div className="self-stretch inline-flex justify-start items-stretch bg-white border-t border-[#d9d9d9]">
-              <div className="flex-1 min-h-12 relative">
+              <div className={`flex-1 min-h-12 relative ${isView ? "rounded-bl-lg" : ""}`}>
                 <div className="absolute left-[15px] top-3 text-[#265ed6] text-base font-medium leading-6 tracking-tight">
                   Total
                 </div>
               </div>
-              <div className="w-[162px] px-[15px] py-3 flex justify-end items-center shrink-0">
+              <div className={`w-[162px] px-[15px] py-3 flex justify-end items-center shrink-0 ${isView ? "rounded-br-lg" : ""}`}>
                 <div className="text-right text-[#fd5c04] text-base font-medium leading-6 tracking-tight">
                   {formatMoney0(total)}
                 </div>
               </div>
-              <div className="w-10 min-w-10 shrink-0" />
+              {!isView && <div className="w-10 min-w-10 shrink-0 rounded-br-lg" />}
             </div>
           </div>
         </div>
@@ -1076,15 +1207,34 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
   const [mode, setMode]               = useState<PageMode>("view");
   const [sections, setSections]       = useState<AdvanceSections>(trip ? initAdvSections(trip) : { guide:[], vehicle:[], other:[], allowance:[], extra:[] });
   const [extraItems, setExtraItems]   = useState<ExtraAdvanceItem[]>([]);
+  const [savedSections, setSavedSections] = useState<AdvanceSections>(trip ? initAdvSections(trip) : { guide:[], vehicle:[], other:[], allowance:[], extra:[] });
+  const [savedExtraItems, setSavedExtraItems] = useState<ExtraAdvanceItem[]>([]);
   const [showExtraModal, setShowExtraModal] = useState(false);
   const [extraModalRows, setExtraModalRows] = useState<ExtraModalRow[]>(() => [createEmptyExtraModalRow()]);
-  const [showApprove, setShowApprove] = useState(false);
+  const [approveDialogStep, setApproveDialogStep] = useState<null | "warning" | "success">(null);
   const [toast, setToast]             = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [localStatus, setLocalStatus] = useState(trip?.status ?? "Pending");
   const [openSecs, setOpenSecs] = useState<Record<SectionKey, boolean>>({
     guide: true, vehicle: true, other: true, allowance: true, extra: true,
   });
+  const [showSlipModal, setShowSlipModal] = useState(false);
+  const [slipPreviewSrc, setSlipPreviewSrc] = useState<string | null>(null);
   const toggleSec = (k: SectionKey) => setOpenSecs(p => ({ ...p, [k]: !p[k] }));
+
+  useLayoutEffect(() => {
+    if (!trip) return;
+    const st = advanceGetClientTripStatus(trip.tripCode);
+    if (st !== undefined) setLocalStatus(st);
+    const draft = advanceGetTripAdvanceDraft(trip.tripCode);
+    if (draft) {
+      setSections(draft.sections);
+      setExtraItems(draft.extraItems);
+      setSavedSections(draft.sections);
+      setSavedExtraItems(draft.extraItems);
+    }
+    const slipSrc = advanceGetTripSlipPreviewSrc(trip.tripCode);
+    setSlipPreviewSrc(slipSrc !== undefined ? slipSrc : null);
+  }, [trip]);
 
   if (!trip) {
     return (
@@ -1115,28 +1265,100 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
     showToast("นำรายการออกจากตารางแล้ว ✓");
   };
 
+  const persistListAdvanceTotalsToClient = () => {
+    const main = (["guide", "vehicle", "other", "allowance"] as SectionKey[])
+      .flatMap(k => sections[k])
+      .filter(i => i.checked)
+      .reduce((s, i) => s + (i.advCost || 0), 0);
+    const extra = [...sections.extra.filter(i => i.checked), ...extraItems.filter(i => i.checked)].reduce(
+      (s, i) => s + (i.advCost || 0),
+      0,
+    );
+    advanceSetTripAdvanceTotals(trip.tripCode, main, extra);
+    advanceSetTripAdvanceDraft(trip.tripCode, sections, extraItems);
+  };
+
+  const handleSave = () => {
+    // หน้านี้ใช้ local state เป็นแหล่งข้อมูลหลัก จึงถือว่าบันทึกเมื่อกด Save
+    setSavedSections(JSON.parse(JSON.stringify(sections)) as AdvanceSections);
+    setSavedExtraItems(JSON.parse(JSON.stringify(extraItems)) as ExtraAdvanceItem[]);
+    persistListAdvanceTotalsToClient();
+    showToast("บันทึกเรียบร้อย ✓");
+    setMode("view");
+  };
+
+  const handleEnterEdit = () => {
+    // เมื่อเริ่มแก้ไข ให้เอารายการตั้งต้น "ประกันการเดินทาง" ออกจาก Extra Advance
+    setSections(p => ({
+      ...p,
+      extra: p.extra.map(i =>
+        i.name.includes("ประกันการเดินทาง") ? { ...i, checked: false } : i,
+      ),
+    }));
+    setMode("edit");
+  };
+
+  const handleApproveWarningOk = () => {
+    setApproveDialogStep("success");
+  };
+
+  /** ปิด Success และยืนยัน Approve จริง → ไปหน้ารายการแท็บ Completed (จำกัดแค่ใน session ก่อนรีเฟรช) */
+  const handleApproveSuccessClose = () => {
+    setSavedSections(JSON.parse(JSON.stringify(sections)) as AdvanceSections);
+    setSavedExtraItems(JSON.parse(JSON.stringify(extraItems)) as ExtraAdvanceItem[]);
+    persistListAdvanceTotalsToClient();
+    setLocalStatus("Completed");
+    setMode("view");
+    setApproveDialogStep(null);
+    showToast("Approve เรียบร้อย ✓");
+    advanceMarkTripStatus(trip.tripCode, "Completed");
+    advanceRequestCompletedTab();
+    router.push("/payment/advance");
+  };
+
   const toggleItem  = (sec: SectionKey, id: string) =>
     setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id === id ? { ...i, checked: !i.checked } : i) }));
   const setActPax   = (sec: SectionKey, id: string, val: string) =>
     setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id !== id ? i : { ...i, actPax: Number(val), actCost: i.costType === "Person" ? i.costUnit * Number(val) : i.actCost }) }));
   const setActCost  = (sec: SectionKey, id: string, val: string) =>
     setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id === id ? { ...i, actCost: Number(val) } : i) }));
-  const setCostUnit = (sec: "guide" | "vehicle" | "other", id: string, val: string) =>
-    setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id === id ? { ...i, costUnit: Number(val || 0) } : i) }));
-  const setPax = (sec: "guide" | "vehicle" | "other", id: string, val: string) =>
-    setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id === id ? { ...i, pax: Number(val || 0) } : i) }));
-  const setAdvanceCost = (sec: "guide" | "vehicle" | "other", id: string, val: string) =>
-    setSections(p => ({ ...p, [sec]: p[sec].map(i => i.id === id ? { ...i, advCost: Number(val || 0) } : i) }));
-
   const parseMoney = (s: string) => Number(String(s).replace(/,/g, "") || 0);
+  const calcAdvanceFromCostType = (costType: CostType, costUnit: number, pax: number) =>
+    costType === "Person" ? costUnit * pax : costUnit;
+  const calcCostUnitFromAdvance = (costType: CostType, advCost: number, pax: number) =>
+    costType === "Person" ? (pax > 0 ? advCost / pax : 0) : advCost;
+
+  const setCostUnit = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+    const n = parseMoney(val);
+    setSections(p => ({
+      ...p,
+      [sec]: p[sec].map(i => (i.id === id ? { ...i, costUnit: n, advCost: calcAdvanceFromCostType(i.costType, n, i.pax) } : i)),
+    }));
+  };
+  const setPax = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+    const n = Number(val || 0);
+    setSections(p => ({
+      ...p,
+      [sec]: p[sec].map(i => (i.id === id ? { ...i, pax: n, advCost: calcAdvanceFromCostType(i.costType, i.costUnit, n) } : i)),
+    }));
+  };
+  const setAdvanceCost = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+    const n = parseMoney(val);
+    setSections(p => ({
+      ...p,
+      [sec]: p[sec].map(i =>
+        i.id === id ? { ...i, advCost: n, costUnit: calcCostUnitFromAdvance(i.costType, n, i.pax) } : i,
+      ),
+    }));
+  };
+
   const setSeedExtraCostUnit = (id: string, val: string) => {
     const n = parseMoney(val);
     setSections(p => ({
       ...p,
       extra: p.extra.map(i => {
         if (i.id !== id) return i;
-        if (i.costType === "Person") return { ...i, costUnit: n, advCost: n * i.pax };
-        return { ...i, costUnit: n, advCost: n };
+        return { ...i, costUnit: n, advCost: calcAdvanceFromCostType(i.costType, n, i.pax) };
       }),
     }));
   };
@@ -1146,22 +1368,25 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
       ...p,
       extra: p.extra.map(i => {
         if (i.id !== id) return i;
-        if (i.costType === "Person") return { ...i, pax: n, advCost: i.costUnit * n };
-        return { ...i, pax: n };
+        return { ...i, pax: n, advCost: calcAdvanceFromCostType(i.costType, i.costUnit, n) };
       }),
     }));
   };
   const setSeedExtraAdvCost = (id: string, val: string) => {
     const n = parseMoney(val);
-    setSections(p => ({ ...p, extra: p.extra.map(i => (i.id === id ? { ...i, advCost: n } : i)) }));
+    setSections(p => ({
+      ...p,
+      extra: p.extra.map(i =>
+        i.id === id ? { ...i, advCost: n, costUnit: calcCostUnitFromAdvance(i.costType, n, i.pax) } : i,
+      ),
+    }));
   };
   const setModalExtraCostUnit = (id: string, val: string) => {
     const n = parseMoney(val);
     setExtraItems(prev =>
       prev.map(i => {
         if (i.id !== id) return i;
-        if (i.costType === "Person") return { ...i, costUnit: n, advCost: n * i.pax };
-        return { ...i, costUnit: n, advCost: n };
+        return { ...i, costUnit: n, advCost: calcAdvanceFromCostType(i.costType, n, i.pax) };
       }),
     );
   };
@@ -1170,26 +1395,41 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
     setExtraItems(prev =>
       prev.map(i => {
         if (i.id !== id) return i;
-        if (i.costType === "Person") return { ...i, pax: n, advCost: i.costUnit * n };
-        return { ...i, pax: n };
+        return { ...i, pax: n, advCost: calcAdvanceFromCostType(i.costType, i.costUnit, n) };
       }),
     );
   };
   const setModalExtraAdvCost = (id: string, val: string) => {
     const n = parseMoney(val);
-    setExtraItems(prev => prev.map(i => (i.id === id ? { ...i, advCost: n } : i)));
+    setExtraItems(prev =>
+      prev.map(i => (i.id === id ? { ...i, advCost: n, costUnit: calcCostUnitFromAdvance(i.costType, n, i.pax) } : i)),
+    );
   };
 
-  const pendingView = localStatus === "Pending" && mode === "view";
-  const advKeys     = (pendingView ? ["guide", "vehicle", "other"] : ["guide", "vehicle", "other", "allowance"]) as SectionKey[];
-  const mainItems   = advKeys.flatMap(k => sections[k]).filter(i => i.checked);
+  /** View แบบเดียวกับ Pending: การ์ด Cash Advance ราบ — ใช้กับ Completed ด้วย */
+  const pendingLikeView = mode === "view" && (localStatus === "Pending" || localStatus === "Completed");
+  /** Pending เท่านั้น: สรุปยังไม่รวม allowance / extra ตาม mock เดิม */
+  const pendingOnlyView = localStatus === "Pending" && mode === "view";
+  const advKeys     = (pendingOnlyView ? ["guide", "vehicle", "other"] : ["guide", "vehicle", "other", "allowance"]) as SectionKey[];
+  const mainItems   = advKeys.flatMap(k => savedSections[k]).filter(i => i.checked);
   const totalAdv    = mainItems.reduce((s, i) => s + (i.advCost || 0), 0);
-  const totalExtra  = pendingView
+  const totalExtra  = pendingOnlyView
     ? 0
-    : [...sections.extra.filter(i => i.checked), ...extraItems.filter(i => i.checked)].reduce((s, i) => s + (i.advCost || 0), 0);
+    : [...savedSections.extra.filter(i => i.checked), ...savedExtraItems.filter(i => i.checked)].reduce((s, i) => s + (i.advCost || 0), 0);
   const grandTotal  = totalAdv + totalExtra;
   const statusStyle = STATUS_STYLE[localStatus];
-  const bankColor   = BANK_COLOR[trip.bankName] ?? "#265ed6";
+  const bankColor   = PAYMENT_BANK_COLOR[trip.bankName] ?? "#265ed6";
+  const extraAdvanceRows = [...sections.extra.filter(i => i.checked), ...extraItems.filter(i => i.checked)];
+  const hasExtraAdvanceContent = extraAdvanceRows.length > 0;
+  const topSummaryCards = [
+    { label: "Pax No.ADV", value: trip.paxAdv, bg: "#dceeff", stroke: "#265ed6" },
+    { label: "Checked In", value: trip.checkedIn, bg: "#e6f3e6", stroke: "#1cb579" },
+    { label: "No show", value: trip.noShow, bg: "#ffc3c3", stroke: "#d91616" },
+    { label: "Amount Pax Act.", value: trip.checkedIn, bg: "#e6f3e6", stroke: "#007800" },
+  ] as const;
+  /** Completed ตอน Edit ยังใช้ badge แบบเดียวกับ View (ไม่สลับเป็นแบบ Approved) */
+  const usePendingStyleStatusBadge =
+    pendingLikeView || (mode === "edit" && localStatus === "Completed");
 
   const openExtraModal = () => {
     setExtraModalRows([createEmptyExtraModalRow()]);
@@ -1245,7 +1485,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
           {/* Top Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-sm text-gray-400">
-              <span>Expense</span><span>›</span>
+              <span>Payment</span><span>›</span>
               <Link href="/payment/advance" className="hover:text-blue-500">Advance</Link>
               <span>›</span>
               <span className="font-semibold text-blue-600">{mode === "view" ? "View" : "Edit"}</span>
@@ -1272,7 +1512,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                   </button>
                   {/* Edit */}
                   <button
-                    onClick={() => setMode("edit")}
+                    onClick={handleEnterEdit}
                     className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
                   >
                     <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1284,6 +1524,50 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                 </>
               ) : null}
             </div>
+          </div>
+
+          <div className="self-stretch inline-flex justify-start items-center gap-6">
+            {topSummaryCards.map((card, idx) => (
+              <div key={card.label} className="flex-1 px-6 py-3 bg-white rounded-xl inline-flex flex-col justify-start items-start gap-3">
+                <div className="self-stretch flex flex-col justify-start items-start gap-3">
+                  <div className="self-stretch inline-flex justify-start items-start gap-4">
+                    <div className="flex-1 inline-flex flex-col justify-start items-start gap-2">
+                      <div className="self-stretch inline-flex justify-start items-start gap-2">
+                        <div className="justify-start text-[#1a1a1a] text-[28px] font-normal font-['Kanit'] leading-10">
+                          {card.value}
+                        </div>
+                      </div>
+                      <div className="justify-start text-[#1a1a1a] text-base font-normal font-['Kanit'] leading-6">
+                        {card.label}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-xl flex justify-center items-center gap-2.5" style={{ backgroundColor: card.bg }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="w-6 h-6">
+                        {idx === 1 ? (
+                          <>
+                            <rect x="3.5" y="2.75" width="17" height="19" rx="2" stroke={card.stroke} strokeWidth={1.5} />
+                            <path d="M9 12H15" stroke={card.stroke} strokeWidth={1.5} strokeLinecap="round" />
+                          </>
+                        ) : idx === 2 ? (
+                          <>
+                            <circle cx="12" cy="7" r="4.5" stroke={card.stroke} strokeWidth={1.5} />
+                            <path d="M6 21C6.6 17.8 8.7 16 12 16C15.3 16 17.4 17.8 18 21" stroke={card.stroke} strokeWidth={1.5} strokeLinecap="round" />
+                            <circle cx="18" cy="18" r="1.4" stroke={card.stroke} strokeWidth={1.5} />
+                          </>
+                        ) : (
+                          <>
+                            <circle cx="9.5" cy="6.5" r="4.5" stroke={card.stroke} strokeWidth={1.5} />
+                            <circle cx="17.5" cy="8.2" r="2.6" stroke={card.stroke} strokeWidth={1.5} />
+                            <path d="M2.8 21C3.7 17.5 6 15.8 9.5 15.8C13 15.8 15.3 17.5 16.2 21" stroke={card.stroke} strokeWidth={1.5} strokeLinecap="round" />
+                            <path d="M15.8 18.5C16.2 16.5 17.3 15.4 19.2 15.4" stroke={card.stroke} strokeWidth={1.5} strokeLinecap="round" />
+                          </>
+                        )}
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* ── Trip Info Card ─────────────────────────────────────────────── */}
@@ -1316,12 +1600,21 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
               </div>
               {/* Status + Pax */}
               <div className="flex items-center gap-3">
-                {localStatus === "Pending" ? (
+                {usePendingStyleStatusBadge ? (
                   <>
-                    <div className="self-stretch px-2 py-0.5 bg-[#ffefe6] rounded-2xl flex justify-center items-center gap-1">
-                      <div className="w-2.5 h-2.5 bg-[#fd5c04] rounded-full" />
-                      <div className="text-center justify-start text-[#fd5c04] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight">
-                        Pending
+                    <div
+                      className="self-stretch px-2 py-0.5 rounded-2xl flex justify-center items-center gap-1"
+                      style={{ background: localStatus === "Pending" ? "#ffefe6" : statusStyle.bg }}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ background: localStatus === "Pending" ? "#fd5c04" : statusStyle.color }}
+                      />
+                      <div
+                        className="text-center justify-start text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-tight"
+                        style={{ color: localStatus === "Pending" ? "#fd5c04" : statusStyle.color }}
+                      >
+                        {localStatus}
                       </div>
                     </div>
                     <div className="self-stretch px-2 py-1 bg-[#f8f8f8] rounded-[30px] inline-flex flex-col justify-center items-center gap-1">
@@ -1370,7 +1663,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                 <span className="text-gray-400">-</span>
               </div>
             </div>
-            {localStatus === "Pending" && (
+            {usePendingStyleStatusBadge && (
               <>
                 <div className="h-0 border-t border-[#d9d9d9] mt-5 mb-5" />
                 <div className="self-stretch flex flex-col justify-start items-start gap-3">
@@ -1420,10 +1713,10 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
           <div className="grid gap-5" style={{ gridTemplateColumns: "1fr 300px", alignItems: "start" }}>
 
             {/* Left column */}
-            <div className={`flex flex-col gap-4 ${pendingView ? "" : ""}`}>
+            <div className="flex flex-col gap-4">
 
               {mode === "view" ? (
-                pendingView ? (
+                pendingLikeView ? (
                   <div className="self-stretch rounded-bl-2xl rounded-br-2xl inline-flex flex-col justify-start items-center overflow-hidden">
                     {/* Header: Cash Advance */}
                     <div className="self-stretch p-6 bg-white rounded-tl-2xl rounded-tr-2xl border-b border-[#265ed6] flex flex-col justify-start items-start gap-6 overflow-hidden">
@@ -1475,6 +1768,58 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                       </div>
                       <PendingSectionViewTable sectionKey="other" items={sections.other} />
                     </div>
+
+                    {localStatus === "Completed" && (
+                      <div className="self-stretch p-6 bg-white border-t border-[#E7E7E9] inline-flex flex-col justify-center items-start gap-6 font-['IBM_Plex_Sans_Thai'] rounded-bl-2xl rounded-br-2xl">
+                        {hasExtraAdvanceContent ? (
+                          <>
+                            <div className="self-stretch inline-flex justify-start items-center gap-2">
+                              <ExtraAdvanceIconDocPlus />
+                              <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">
+                                Extra Advance
+                              </div>
+                            </div>
+                            <ExtraAdvanceTable
+                              seedExtra={sections.extra}
+                              modalExtra={extraItems}
+                              variant="view"
+                            />
+                          </>
+                        ) : null}
+
+                        <div
+                          data-property-1={slipPreviewSrc ? "View After" : "View Before"}
+                          data-property-2="True"
+                          data-property-3="Cash"
+                          className={`self-stretch bg-white flex flex-col justify-center items-start gap-3 ${
+                            hasExtraAdvanceContent ? "pt-6 border-t border-[#E7E7E9]" : ""
+                          }`}
+                        >
+                          <div className="self-stretch inline-flex justify-start items-center gap-2">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                              <AttachmentPaperclipIcon />
+                            </div>
+                            <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                              Attachment
+                            </div>
+                            <div className="flex justify-end items-center gap-4">
+                              <AttachmentAddSlipButton onClick={() => setShowSlipModal(true)} />
+                            </div>
+                          </div>
+                          {slipPreviewSrc ? (
+                            <div className="self-stretch inline-flex justify-start items-start gap-6">
+                              <div className="inline-flex flex-col justify-center items-start">
+                                <img
+                                  src={slipPreviewSrc}
+                                  alt="สลิปที่แนบ"
+                                  className="h-[74.8px] w-[74.8px] rounded-[10px] object-cover outline-2 -outline-offset-2 outline-gray-200"
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -1675,6 +2020,38 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                         onEditModalAdvCost={setModalExtraAdvCost}
                       />
                     </div>
+
+                    {localStatus === "Completed" ? (
+                      <div
+                        data-property-1={slipPreviewSrc ? "View After" : "View Before"}
+                        data-property-2="True"
+                        data-property-3="Cash"
+                        className="self-stretch mt-4 flex flex-col justify-center items-start gap-3 border-t border-[#E7E7E9] pt-6"
+                      >
+                        <div className="self-stretch inline-flex justify-start items-center gap-2">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center">
+                            <AttachmentPaperclipIcon />
+                          </div>
+                          <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                            Attachment
+                          </div>
+                          <div className="flex justify-end items-center gap-4">
+                            <AttachmentAddSlipButton onClick={() => setShowSlipModal(true)} />
+                          </div>
+                        </div>
+                        {slipPreviewSrc ? (
+                          <div className="self-stretch inline-flex justify-start items-start gap-6">
+                            <div className="inline-flex flex-col justify-center items-start">
+                              <img
+                                src={slipPreviewSrc}
+                                alt="สลิปที่แนบ"
+                                className="h-[74.8px] w-[74.8px] rounded-[10px] object-cover outline-2 -outline-offset-2 outline-gray-200"
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -1709,10 +2086,10 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                     </span>
                   </div>
                 </div>
-                {!pendingView && mode === "view" && (
+                {mode === "view" && localStatus !== "Pending" && localStatus !== "Completed" && (
                   <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
                     <button
-                      onClick={() => setShowApprove(true)}
+                      onClick={() => setApproveDialogStep("warning")}
                       className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-xl py-3 transition-colors"
                     >
                       ✓ Approve
@@ -1733,18 +2110,20 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                   Cancel
                 </button>
                 <div className="flex-1 flex justify-end items-center gap-4">
+                  {localStatus !== "Completed" ? (
+                    <button
+                      onClick={handleSave}
+                      className="px-5 py-2 bg-[#e3f1ff] rounded-[100px] inline-flex justify-center items-center gap-2 text-[#265ed6] text-base font-medium leading-6 tracking-tight"
+                    >
+                      <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}>
+                        <path d="M19 21H5a2 2 0 01-2-2V7l4-4h12a2 2 0 012 2v14a2 2 0 01-2 2z"/>
+                        <path d="M17 21v-8H7v8M7 3v4h8"/>
+                      </svg>
+                      Save
+                    </button>
+                  ) : null}
                   <button
-                    onClick={() => showToast("บันทึกเรียบร้อย ✓")}
-                    className="px-5 py-2 bg-[#e3f1ff] rounded-[100px] inline-flex justify-center items-center gap-2 text-[#265ed6] text-base font-medium leading-6 tracking-tight"
-                  >
-                    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}>
-                      <path d="M19 21H5a2 2 0 01-2-2V7l4-4h12a2 2 0 012 2v14a2 2 0 01-2 2z"/>
-                      <path d="M17 21v-8H7v8M7 3v4h8"/>
-                    </svg>
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setShowApprove(true)}
+                    onClick={() => setApproveDialogStep("warning")}
                     className="px-5 py-2 bg-[#265ed6] rounded-[100px] inline-flex justify-center items-center gap-2 text-white text-base font-medium leading-6 tracking-tight"
                   >
                     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}>
@@ -1771,14 +2150,27 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
         onConfirm={confirmExtraModal}
       />
 
-      {showApprove && (
-        <ApproveModal
-          tripCode={trip.tripCode} program={trip.program}
-          tripRound={trip.tripRound} guide={trip.guide}
-          totalAdv={totalAdv}
-          onClose={() => setShowApprove(false)}
-          onConfirm={() => { setLocalStatus("Approved"); setShowApprove(false); showToast("Approve เรียบร้อย ✓"); }}
+      <AttachmentSlipModal
+        open={showSlipModal}
+        onClose={() => setShowSlipModal(false)}
+        trip={trip}
+        localStatus={localStatus}
+        grandTotal={grandTotal}
+        onConfirmSuccess={src => {
+          advanceSetTripSlipPreviewSrc(trip.tripCode, src);
+          setSlipPreviewSrc(src);
+          setShowSlipModal(false);
+        }}
+      />
+
+      {approveDialogStep === "warning" && (
+        <ApproveWarningModal
+          onClose={() => setApproveDialogStep(null)}
+          onConfirm={handleApproveWarningOk}
         />
+      )}
+      {approveDialogStep === "success" && (
+        <ApproveSuccessModal onClose={handleApproveSuccessClose} />
       )}
       {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>

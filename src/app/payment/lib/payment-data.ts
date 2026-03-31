@@ -173,9 +173,7 @@ export function initExpSections(trip: Trip): ExpenseSections {
     allowance: [
       { id:"a1", name:"ค่าเบี้ยเลี้ยง Driver",               payment:"Cash",   supplier:"-",   costType:"All",    costUnit:500,  actPax:a, actCost:500,     checked:true  },
     ],
-    extra: [
-      { id:"e1", name:"ประกันการเดินทาง",                    payment:"Cash",   supplier:"-",   costType:"Person", costUnit:30,   actPax:a, actCost:30*a,    checked:true  },
-    ],
+    extra: [],
   };
 }
 

@@ -1,13 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { INIT_TRIPS, calcAdvTotal, calcExtraAdvTotal, Trip } from "../lib/payment-data";
+import { INIT_TRIPS, Trip } from "../lib/payment-data";
+import {
+  advanceApplyClientTripStatus,
+  advanceClearCompletedTabFlag,
+  advanceMarkTripStatus,
+  advanceReadInitialCompletedTab,
+  advanceResolveExtraAdvTotal,
+  advanceResolveMainAdvTotal,
+  advanceSetTripSlipPreviewSrc,
+} from "../lib/advance-client-state";
 import TripTypeBadge from "../components/TripTypeBadge";
 import { PAYMENT_BANK_COLOR, formatPaymentMoney } from "../components/payment-table-styles";
+import { AttachmentSlipModal } from "../components/AttachmentSlipModal";
+
+type SlipInfo = { preview: boolean; extraCount?: number };
+
+const ROW_SLIPS: Record<string, SlipInfo> = {
+  EC25Z1PW: { preview: false },
+  EC2581C4: { preview: true },
+  EC25DM35: { preview: false },
+  EC255D2C: { preview: true },
+  EC25PV01: { preview: false },
+  EC25PV02: { preview: true, extraCount: 2 },
+  EC25ABC1: { preview: true },
+  TF25Z1PW: { preview: false },
+};
+
+const BANK_COLOR = PAYMENT_BANK_COLOR;
+const formatMoney = formatPaymentMoney;
 
 // ─── ICONS ────────────────────────────────────────────────────────────────────
 const IconAmountTrip = () => (
@@ -37,68 +63,384 @@ const IconGrandTotal = () => (
   </svg>
 );
 
-// ─── ACTION DROPDOWN ──────────────────────────────────────────────────────────
-function ActionMenu({ tripCode, onApprove }: { tripCode: string; onApprove: () => void }) {
+// ─── ACTION DROPDOWN (Pending: View / Approve / Print — Completed: View / Add Slip / Print) ─
+function IconActionView() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0" aria-hidden>
+      <path
+        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+        stroke="#2a2a2a"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="#2a2a2a" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+function IconActionApprove() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="#292d32" strokeWidth={1.5} />
+      <path d="M8 12.5l2.5 2.5L16 9.5" stroke="#292d32" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconActionPrint() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0" aria-hidden>
+      <path
+        d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"
+        stroke="#2a2a2a"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M6 14h12" stroke="#2a2a2a" strokeWidth={1.5} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconActionAddSlip() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0" aria-hidden>
+      <path
+        d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
+        stroke="#2a2a2a"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** ไอคอน Export — ตรงดีไซน์ Blue Primary / linear */
+function IconExportPayment() {
+  return (
+    <svg
+      width={24}
+      height={24}
+      viewBox="0 0 24 24"
+      fill="none"
+      className="shrink-0 text-white"
+      aria-hidden
+    >
+      <path
+        d="M12 4v12M8 8l4-4 4 4"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 14v4a2 2 0 002 2h10a2 2 0 002-2v-4"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+const actionMenuRowClass =
+  "w-[164px] px-3 py-2 bg-white inline-flex justify-start items-center gap-2 hover:bg-gray-50 text-[#2a2a2a] font-['IBM_Plex_Sans_Thai'] text-base font-normal leading-6 tracking-tight transition-colors";
+const actionMenuPanelClass =
+  "absolute right-0 top-9 z-20 w-[164px] overflow-hidden rounded bg-white shadow-[0px_2px_4px_0px_rgba(0,0,0,0.08)] inline-flex flex-col justify-start items-start";
+
+type ActionMenuVariant = "pending" | "completed";
+
+function ActionMenu({
+  tripCode,
+  variant,
+  onApprove,
+  onAddSlip,
+}: {
+  tripCode: string;
+  variant: ActionMenuVariant;
+  onApprove?: () => void;
+  /** completed: เปิด modal แนบสลิปบนหน้ารายการ โดยไม่นำทาง */
+  onAddSlip?: () => void;
+}) {
   const [open, setOpen] = useState(false);
+
+  const handlePrint = () => {
+    setOpen(false);
+    window.print();
+  };
+
   return (
     <div className="relative inline-flex">
       <button
+        type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-lg transition-colors"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-[#142b41] transition-colors hover:bg-gray-100"
+        aria-label="เมนู"
+        aria-expanded={open}
       >
-        ···
+        <span className="flex items-center justify-center gap-0.5">
+          <span className="h-1 w-1 rounded-full bg-[#142b41]" />
+          <span className="h-1 w-1 rounded-full bg-[#142b41]" />
+          <span className="h-1 w-1 rounded-full bg-[#142b41]" />
+        </span>
       </button>
-      {open && (
+      {open ? (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 bg-white rounded-xl shadow-lg border border-[#E7E7E9] z-20 min-w-[160px] overflow-hidden">
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <div className={actionMenuPanelClass} role="menu">
             <Link
               href={`/payment/advance/${tripCode}`}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              className={actionMenuRowClass}
+              role="menuitem"
               onClick={() => setOpen(false)}
             >
-              ✏️ Edit Advance
+              <IconActionView />
+              <span className="flex-1 text-left">View</span>
             </Link>
+            {variant === "pending" ? (
+              <button
+                type="button"
+                className={`${actionMenuRowClass} w-[164px] cursor-pointer border-0 text-left`}
+                role="menuitem"
+                onClick={() => {
+                  onApprove?.();
+                  setOpen(false);
+                }}
+              >
+                <IconActionApprove />
+                <span className="flex-1">Approve</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`${actionMenuRowClass} w-[164px] cursor-pointer border-0 text-left`}
+                role="menuitem"
+                onClick={() => {
+                  onAddSlip?.();
+                  setOpen(false);
+                }}
+              >
+                <IconActionAddSlip />
+                <span className="flex-1 text-left">Add Slip</span>
+              </button>
+            )}
             <button
-              onClick={() => { onApprove(); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+              type="button"
+              className={`${actionMenuRowClass} w-[164px] cursor-pointer border-0 text-left`}
+              role="menuitem"
+              onClick={handlePrint}
             >
-              ✓ Approve
+              <IconActionPrint />
+              <span className="flex-1">Print</span>
             </button>
           </div>
         </>
-      )}
+      ) : null}
+    </div>
+  );
+}
+
+// ─── COMPLETED TAB TABLE (โครงสร้างตามดีไซน์) ─────────────────────────────────
+function AdvanceCompletedTable({
+  rows,
+  rowSlips,
+  onAddSlip,
+}: {
+  rows: Trip[];
+  rowSlips: Record<string, SlipInfo>;
+  onAddSlip: (trip: Trip) => void;
+}) {
+  const totalAdvance = rows.reduce((s, t) => s + advanceResolveMainAdvTotal(t), 0);
+  const totalExtra   = rows.reduce((s, t) => s + advanceResolveExtraAdvTotal(t), 0);
+  const grandTotal   = totalAdvance + totalExtra;
+
+  const th = "h-11 p-2 border-l border-white flex items-center text-white text-base font-medium leading-6 tracking-tight shrink-0";
+  const tdNum = "text-[#2a2a2a] text-base font-normal leading-6 tracking-tight";
+
+  return (
+    <div className="w-full max-w-full inline-flex flex-col items-stretch gap-6 font-['IBM_Plex_Sans_Thai']">
+      <div className="w-full bg-white rounded-lg outline-1 -outline-offset-1 outline-[#d9d9d9] flex flex-col overflow-hidden overflow-x-auto">
+        {/* Header */}
+        <div className="min-w-[1100px] w-full rounded-tl-lg rounded-tr-lg inline-flex justify-start items-stretch overflow-hidden">
+          <div className="w-16 h-11 p-2 bg-[#142b41] flex justify-center items-center shrink-0 text-white text-base font-medium leading-6 tracking-tight">#</div>
+          <div className={`w-[130px] bg-[#142b41] ${th} justify-start`}>Trip Code</div>
+          <div className={`w-[104px] bg-[#142b41] ${th} justify-center`}>Trip Type</div>
+          <div className={`flex-1 min-w-[120px] bg-[#142b41] ${th} justify-start`}>Program</div>
+          <div className={`w-[200px] bg-[#142b41] ${th} justify-start`}>Guide</div>
+          <div className={`w-[200px] bg-[#142b41] ${th} justify-start`}>Book Bank</div>
+          <div className={`w-[68px] bg-[#142b41] ${th} justify-end`}>Pax</div>
+          <div className={`w-[120px] bg-[#265ed6] ${th} justify-end`}>Advance</div>
+          <div className={`w-[120px] bg-[#fd5c04] ${th} justify-end`}>Extra Advance</div>
+          <div className={`w-[120px] bg-[#97bee4] ${th} justify-end`}>Total</div>
+          <div className={`w-20 bg-[#142b41] ${th} justify-center`}>Slip</div>
+          <div className={`w-20 bg-[#142b41] ${th} justify-center`}>Action</div>
+        </div>
+
+        {/* Rows */}
+        {rows.length === 0 && (
+          <div className="py-12 text-center text-gray-400 text-sm">ไม่พบข้อมูล</div>
+        )}
+        {rows.map((t, i) => {
+          const adv = advanceResolveMainAdvTotal(t);
+          const ex  = advanceResolveExtraAdvTotal(t);
+          const rowBg = i % 2 === 1 ? "bg-[#f8f8f8]" : "bg-white";
+          const slip = rowSlips[t.tripCode] ?? { preview: false };
+          const slipExtra = slip.extraCount;
+          const bankColor = BANK_COLOR[t.bankName] ?? "#265ED6";
+          return (
+            <div key={t.id} className={`min-w-[1100px] w-full inline-flex justify-start items-stretch ${rowBg}`}>
+              <div className={`w-16 h-16 p-2 flex justify-center items-center shrink-0 ${rowBg}`}>
+                <span className={tdNum}>{i + 1}</span>
+              </div>
+              <div className={`w-[130px] h-16 p-2 border-l border-[#d9d9d9] flex items-center shrink-0 ${rowBg}`}>
+                <Link href={`/payment/advance/${t.tripCode}`} className="text-[#265ed6] text-base font-normal underline leading-6 tracking-tight line-clamp-1">
+                  {t.tripCode}
+                </Link>
+              </div>
+              <div className={`w-[104px] h-16 p-2 border-l border-[#d9d9d9] flex justify-center items-center shrink-0 ${rowBg}`}>
+                <TripTypeBadge tripType={t.tripType} />
+              </div>
+              <div className={`flex-1 min-w-[120px] h-16 p-2 border-l border-[#d9d9d9] flex items-center shrink-0 ${rowBg}`}>
+                <span className={`flex-1 ${tdNum} line-clamp-1`}>{t.program}</span>
+              </div>
+              <div className={`w-[200px] h-16 p-2 border-l border-[#d9d9d9] flex items-center shrink-0 ${rowBg}`}>
+                <span className={`flex-1 ${tdNum} line-clamp-1`}>{t.guide}</span>
+              </div>
+              <div className={`w-[200px] h-16 p-2 border-l border-[#d9d9d9] flex items-start gap-2 shrink-0 ${rowBg}`}>
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] mt-0.5 shrink-0"
+                  style={{ backgroundColor: bankColor }}
+                >
+                  ฿
+                </span>
+                <span className={`flex-1 min-w-0 ${tdNum} line-clamp-2`}>
+                  {t.bankNo} {t.guide}
+                </span>
+              </div>
+              <div className={`w-[68px] h-16 p-2 border-l border-[#d9d9d9] flex justify-end items-center shrink-0 ${rowBg}`}>
+                <span className={tdNum}>{t.paxAdv}</span>
+              </div>
+              <div className={`w-[120px] h-16 p-2 border-l border-[#d9d9d9] flex justify-end items-center shrink-0 ${rowBg}`}>
+                <span className={`flex-1 text-right ${tdNum} line-clamp-1 tabular-nums`}>{formatMoney(adv)}</span>
+              </div>
+              <div className={`w-[120px] h-16 p-2 border-l border-[#d9d9d9] flex justify-end items-center shrink-0 ${rowBg}`}>
+                <span className={`flex-1 text-right ${tdNum} line-clamp-1 tabular-nums`}>{formatMoney(ex)}</span>
+              </div>
+              <div className={`w-[120px] h-16 p-2 border-l border-[#d9d9d9] flex justify-end items-center shrink-0 ${rowBg}`}>
+                <span className={`flex-1 text-right ${tdNum} line-clamp-1 tabular-nums`}>{formatMoney(adv + ex)}</span>
+              </div>
+              <div className="w-20 h-16 p-2 bg-[#f8f8f8] border-l border-[#d9d9d9] flex justify-center items-center shrink-0">
+                {!slip.preview ? (
+                  <div className="w-8 h-8 bg-white rounded border border-[#d9d9d9]" />
+                ) : (
+                  <div className="w-8 h-8 relative rounded border border-[#d9d9d9] overflow-hidden bg-[#ececec]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="https://placehold.co/32x32/ececec/999/png?text=·" alt="" className="w-8 h-8 object-cover" />
+                    {slipExtra ? (
+                      <>
+                        <div className="absolute inset-0 bg-[#848484]/50 rounded" />
+                        <span className="absolute inset-0 flex items-center justify-center text-white text-lg font-semibold leading-7 tracking-tight">
+                          +{slipExtra}
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              <div className={`w-20 h-16 px-[18px] py-4 border-l border-[#d9d9d9] inline-flex flex-col justify-center items-center shrink-0 ${rowBg}`}>
+                <ActionMenu tripCode={t.tripCode} variant="completed" onAddSlip={() => onAddSlip(t)} />
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Footer — Total ในคอลัมน์ #; ยอด Advance น้ำเงิน / Extra ส้ม / Total ดำ ตัวหนา ตรงหัวคอลัมน์ */}
+        {rows.length > 0 && (
+          <div className="min-w-[1100px] w-full inline-flex justify-start items-stretch border-t border-[#d9d9d9] bg-white">
+            <div className="w-16 min-h-12 p-2 flex justify-center items-center shrink-0 bg-white">
+              <span className="text-[#265ed6] text-base font-bold leading-6 tracking-tight">Total</span>
+            </div>
+            <div className="w-[130px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-[104px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="flex-1 min-w-[120px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-[200px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-[200px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-[68px] min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-[120px] min-h-12 px-2 py-3 flex justify-end items-center shrink-0 bg-white">
+              <span className="text-right text-[#265ed6] text-base font-bold leading-6 tracking-tight tabular-nums">
+                {formatMoney(totalAdvance)}
+              </span>
+            </div>
+            <div className="w-[120px] min-h-12 px-2 py-3 flex justify-end items-center shrink-0 bg-white">
+              <span className="text-right text-[#fd5c04] text-base font-bold leading-6 tracking-tight tabular-nums">
+                {formatMoney(totalExtra)}
+              </span>
+            </div>
+            <div className="w-[120px] min-h-12 px-2 py-3 flex justify-end items-center shrink-0 bg-white">
+              <span className="text-right text-[#1a1a1a] text-base font-bold leading-6 tracking-tight tabular-nums">
+                {formatMoney(grandTotal)}
+              </span>
+            </div>
+            <div className="w-20 min-h-12 shrink-0 bg-white" aria-hidden />
+            <div className="w-20 min-h-12 shrink-0 bg-white" aria-hidden />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
-type SlipInfo = { preview: boolean; extraCount?: number };
-
-const ROW_SLIPS: Record<string, SlipInfo> = {
-  EC25Z1PW: { preview: false },
-  EC2581C4: { preview: true },
-  EC25DM35: { preview: false },
-  EC255D2C: { preview: true },
-  EC25PV01: { preview: false },
-  EC25PV02: { preview: true, extraCount: 2 },
-  EC25ABC1: { preview: true },
-  TF25Z1PW: { preview: false },
-};
-
-const BANK_COLOR = PAYMENT_BANK_COLOR;
-const formatMoney = formatPaymentMoney;
-
 export default function AdvanceListPage() {
-  const [trips, setTrips] = useState(INIT_TRIPS);
-  const [activeTab, setActiveTab] = useState<"Pending" | "Completed">("Pending");
+  const [trips, setTrips] = useState<Trip[]>(() =>
+    advanceApplyClientTripStatus(INIT_TRIPS.map(t => ({ ...t }))),
+  );
+  const [activeTab, setActiveTab] = useState<"Pending" | "Completed">(() =>
+    typeof window !== "undefined" && advanceReadInitialCompletedTab() ? "Completed" : "Pending",
+  );
   const [search, setSearch] = useState("");
   const [date, setDate]     = useState("17/12/2025");
+  const [slipModalTrip, setSlipModalTrip] = useState<Trip | null>(null);
+  /** แถว Pending ที่เลือกจาก checkbox (trip id) */
+  const [pendingSelectedIds, setPendingSelectedIds] = useState<Set<number>>(() => new Set());
+  const pendingSelectAllRef = useRef<HTMLInputElement>(null);
 
-  const pending   = trips;
+  /** ซิงก์จาก mock + override ใน memory; ลบธงแท็บหลัง mount (setTimeout 0 ให้ Strict Mode อ่านซ้ำได้); รีเฟรช = beforeunload ลบธง */
+  useEffect(() => {
+    const onBeforeUnload = () => advanceClearCompletedTabFlag();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    setTrips(advanceApplyClientTripStatus(INIT_TRIPS.map(t => ({ ...t }))));
+    const t = window.setTimeout(() => advanceClearCompletedTabFlag(), 0);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "Pending") return;
+    const pendingIdSet = new Set(trips.filter(t => t.status === "Pending").map(t => t.id));
+    setPendingSelectedIds(prev => {
+      let changed = false;
+      const next = new Set<number>();
+      prev.forEach(id => {
+        if (pendingIdSet.has(id)) next.add(id);
+        else changed = true;
+      });
+      return changed ? next : prev;
+    });
+  }, [trips, activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "Completed") setPendingSelectedIds(new Set());
+  }, [activeTab]);
+
+  /** Pending = รอดำเนินการ; Completed = อนุมัติ/จบแล้ว — Approve แล้วแถวจะหายจาก Pending ไปอยู่ Completed */
+  const pending   = trips.filter(t => t.status === "Pending");
   const completed = trips.filter(t => t.status === "Approved" || t.status === "Completed");
-  const source    = activeTab === "Pending" ? pending : completed;
-  const showSlipColumn = activeTab === "Completed";
+  const source = activeTab === "Pending" ? pending : completed;
 
   const tableHeaders = [
     "#",
@@ -111,7 +453,6 @@ export default function AdvanceListPage() {
     "Book Bank",
     "Pax",
     "Advance",
-    ...(showSlipColumn ? ["Slip" as const] : []),
     "Action",
   ] as const;
 
@@ -121,13 +462,62 @@ export default function AdvanceListPage() {
     t.guide.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalAdv      = trips.reduce((s, t) => s + calcAdvTotal(t), 0);
-  const totalExtraAdv = trips.reduce((s, t) => s + calcExtraAdvTotal(t), 0);
+  const totalAdv      = trips.reduce((s, t) => s + advanceResolveMainAdvTotal(t), 0);
+  const totalExtraAdv = trips.reduce((s, t) => s + advanceResolveExtraAdvTotal(t), 0);
   const grandTotal    = totalAdv + totalExtraAdv;
-  const shownTotal    = shown.reduce((s, t) => s + calcAdvTotal(t), 0);
+  const shownTotal    = shown.reduce((s, t) => s + advanceResolveMainAdvTotal(t), 0);
 
   const handleApprove = (id: number) => {
-    setTrips(ts => ts.map(t => t.id === id ? { ...t, status: "Approved" as const } : t));
+    const row = INIT_TRIPS.find(t => t.id === id);
+    if (row) advanceMarkTripStatus(row.tripCode, "Approved");
+    setTrips(advanceApplyClientTripStatus(INIT_TRIPS.map(t => ({ ...t }))));
+    setPendingSelectedIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const togglePendingRowSelected = (id: number) => {
+    setPendingSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const shownPendingIds = shown.map(t => t.id);
+  const allShownPendingSelected =
+    shownPendingIds.length > 0 && shownPendingIds.every(id => pendingSelectedIds.has(id));
+  const someShownPendingSelected = shownPendingIds.some(id => pendingSelectedIds.has(id));
+
+  useEffect(() => {
+    const el = pendingSelectAllRef.current;
+    if (!el) return;
+    el.indeterminate = someShownPendingSelected && !allShownPendingSelected;
+  }, [someShownPendingSelected, allShownPendingSelected]);
+
+  const toggleSelectAllShownPending = () => {
+    setPendingSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allShownPendingSelected) {
+        shownPendingIds.forEach(id => next.delete(id));
+      } else {
+        shownPendingIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkApprove = () => {
+    pendingSelectedIds.forEach(id => {
+      const row = INIT_TRIPS.find(t => t.id === id);
+      if (row) advanceMarkTripStatus(row.tripCode, "Approved");
+    });
+    setTrips(advanceApplyClientTripStatus(INIT_TRIPS.map(t => ({ ...t }))));
+    setPendingSelectedIds(new Set());
   };
 
   return (
@@ -140,7 +530,7 @@ export default function AdvanceListPage() {
           {/* Header + Controls */}
           <div className="w-full inline-flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-[#B9B9B9] text-base font-medium">Expense</span>
+              <span className="text-[#B9B9B9] text-base font-medium">Payment</span>
               <span className="text-[#2A2A2A]">›</span>
               <span className="text-[#265ED6] text-lg font-semibold">Advance</span>
             </div>
@@ -169,14 +559,18 @@ export default function AdvanceListPage() {
                   className="flex-1 outline-none text-base text-[#2A2A2A] placeholder:text-[#B9B9B9]"
                 />
               </div>
-              <button className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-[#D9D9D9] text-[#2A2A2A]">
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15V19C21 20.105 20.105 21 19 21H5C3.895 21 3 20.105 3 19V15" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M17 8L12 3L7 8M12 3V15" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="font-medium">Export</span>
-                <span className="text-sm">▼</span>
-              </button>
+              {activeTab === "Completed" ? (
+                <button
+                  type="button"
+                  className="px-5 py-2 bg-[#265ed6] rounded-[100px] inline-flex justify-center items-center gap-2 shrink-0 text-white hover:opacity-95 font-['IBM_Plex_Sans_Thai']"
+                  aria-label="Export Payment"
+                >
+                  <IconExportPayment />
+                  <span className="text-center text-base font-medium leading-6 tracking-tight">
+                    Export Payment
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -236,159 +630,189 @@ export default function AdvanceListPage() {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="w-full flex border-b border-transparent">
-            {(["Pending", "Completed"] as const).map(tab => {
-              const cnt = tab === "Pending" ? pending.length : completed.length;
-              return (
+          {/* Tabs + bulk Approve แถวเดียวกัน */}
+          <div className="w-full flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-transparent">
+            <div className="flex flex-wrap items-end">
+              {(["Pending", "Completed"] as const).map(tab => {
+                const cnt = tab === "Pending" ? pending.length : completed.length;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={`p-2 mr-4 border-b-4 inline-flex items-center gap-2 ${
+                      activeTab === tab ? "border-[#FE7931] text-[#265ED6]" : "border-transparent text-[#142B41]"
+                    }`}
+                  >
+                    <span className="text-base font-medium">{tab}</span>
+                    <span className="px-[7px] rounded-md bg-[#265ED6] text-white text-base font-medium leading-6">
+                      {cnt}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {activeTab === "Pending" && pendingSelectedIds.size > 0 ? (
+              <div className="flex items-center gap-4 pb-2 shrink-0">
+                <span className="text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                  {pendingSelectedIds.size} Selected
+                </span>
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`p-2 mr-4 border-b-4 inline-flex items-center gap-2 ${
-                    activeTab === tab ? "border-[#FE7931] text-[#265ED6]" : "border-transparent text-[#142B41]"
-                  }`}
+                  type="button"
+                  onClick={handleBulkApprove}
+                  className="px-5 py-2 bg-[#265ED6] rounded-[100px] text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight hover:opacity-95"
                 >
-                  <span className="text-base font-medium">{tab}</span>
-                  <span className="px-[7px] rounded-md bg-[#265ED6] text-white text-base font-medium leading-6">
-                    {cnt}
-                  </span>
+                  Approve
                 </button>
-              );
-            })}
+              </div>
+            ) : null}
           </div>
 
-          {/* Table Card */}
-          <div className="w-full bg-white rounded-lg border border-[#D9D9D9] overflow-hidden">
-
-            {/* Table */}
-            <div className="overflow-hidden">
-              <table className="w-full table-fixed border-collapse">
-                <colgroup>
-                  <col className="w-16" />
-                  <col className="w-[130px]" />
-                  <col className="w-[108px]" />
-                  <col className="w-[104px]" />
-                  <col className="w-[108px]" />
-                  <col />
-                  <col className="w-[200px]" />
-                  <col className="w-[200px]" />
-                  <col className="w-[68px]" />
-                  <col className="w-[150px]" />
-                  {showSlipColumn ? <col className="w-20" /> : null}
-                  <col className="w-20" />
-                </colgroup>
-                <thead>
-                  <tr className="bg-[#142B41] text-white h-11">
-                    {tableHeaders.map((h, i) => (
-                      <th
-                        key={`${h}-${i}`}
-                        className={`p-2 h-11 text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap ${
-                          i > 0 ? "border-l border-white" : ""
-                        } ${h === "Advance" ? "bg-[#265ED6]" : ""} ${
-                          h === "#" || h === "Trip Type" || h === "Slip" || h === "Action"
-                            ? "text-center"
-                            : h === "Pax" || h === "Advance"
-                              ? "text-right"
-                              : "text-left"
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.length === 0 && (
-                    <tr>
-                      <td colSpan={tableHeaders.length} className="py-12 text-center text-gray-400">ไม่พบข้อมูล</td>
+          {/* ตาราง: Completed = โครงสร้างตามดีไซน์ / Pending = ตารางเดิม (มี Travel Date, Trip Round) */}
+          {activeTab === "Completed" ? (
+            <AdvanceCompletedTable
+              rows={shown}
+              rowSlips={ROW_SLIPS}
+              onAddSlip={t => setSlipModalTrip(t)}
+            />
+          ) : (
+            <div className="w-full bg-white rounded-lg border border-[#D9D9D9] overflow-hidden">
+              <div className="overflow-x-auto overflow-hidden">
+                <table className="w-full table-fixed border-collapse min-w-[1000px]">
+                  <colgroup>
+                    <col className="w-16" />
+                    <col className="w-[130px]" />
+                    <col className="w-[108px]" />
+                    <col className="w-[104px]" />
+                    <col className="w-[108px]" />
+                    <col />
+                    <col className="w-[200px]" />
+                    <col className="w-[200px]" />
+                    <col className="w-[68px]" />
+                    <col className="w-[150px]" />
+                    <col className="w-20" />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-[#142B41] text-white h-11">
+                      {tableHeaders.map((h, i) => (
+                        <th
+                          key={`${h}-${i}`}
+                          className={`p-2 h-11 text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap ${
+                            i > 0 ? "border-l border-white" : ""
+                          } ${h === "Advance" ? "bg-[#265ED6]" : ""} ${
+                            h === "#" || h === "Trip Type" || h === "Action"
+                              ? "text-center"
+                              : h === "Pax" || h === "Advance"
+                                ? "text-right"
+                                : "text-left"
+                          }`}
+                        >
+                          {h === "#" ? (
+                            <input
+                              ref={pendingSelectAllRef}
+                              type="checkbox"
+                              checked={allShownPendingSelected}
+                              onChange={toggleSelectAllShownPending}
+                              disabled={shown.length === 0}
+                              className="h-4 w-4 cursor-pointer rounded border-white/40 bg-white/10 accent-[#265ED6] focus:ring-2 focus:ring-white/80"
+                              aria-label="เลือกทั้งหมดในหน้านี้"
+                            />
+                          ) : (
+                            h
+                          )}
+                        </th>
+                      ))}
                     </tr>
-                  )}
-                  {shown.map((t: Trip, i: number) => {
-                    const adv = calcAdvTotal(t);
-                    const slip = ROW_SLIPS[t.tripCode] ?? { preview: false };
-                    const bankColor = BANK_COLOR[t.bankName] ?? "#265ED6";
-                    return (
-                      <tr key={t.id} className={`h-16 border-b border-[#D9D9D9] ${i % 2 === 1 ? "bg-[#F8F8F8]" : "bg-white"}`}>
-                        <td className="p-2 h-16 text-center text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{i + 1}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                          <Link href={`/payment/advance/${t.tripCode}`} className="text-[#265ED6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6 tracking-tight">
-                            {t.tripCode}
-                          </Link>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">{t.date}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                          <TripTypeBadge tripType={t.tripType} />
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">{t.tripRound.replace(":", " : ")}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
-                          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.program}</div>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
-                          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.guide}</div>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
-                          <div className="flex items-start gap-2">
-                            <span
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] mt-0.5 shrink-0"
-                              style={{ backgroundColor: bankColor }}
-                            >
-                              ฿
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                                {t.bankNo}
-                              </div>
-                              <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
-                                {t.guide}
+                  </thead>
+                  <tbody>
+                    {shown.length === 0 && (
+                      <tr>
+                        <td colSpan={tableHeaders.length} className="py-12 text-center text-gray-400">ไม่พบข้อมูล</td>
+                      </tr>
+                    )}
+                    {shown.map((t: Trip, i: number) => {
+                      const adv = advanceResolveMainAdvTotal(t);
+                      const bankColor = BANK_COLOR[t.bankName] ?? "#265ED6";
+                      return (
+                        <tr key={t.id} className={`h-16 border-b border-[#D9D9D9] ${i % 2 === 1 ? "bg-[#F8F8F8]" : "bg-white"}`}>
+                          <td className="p-2 h-16 border-[#D9D9D9]">
+                            <div className="flex h-full items-center justify-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={pendingSelectedIds.has(t.id)}
+                                onChange={() => togglePendingRowSelected(t.id)}
+                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-[#D9D9D9] accent-[#265ED6]"
+                                aria-label={`เลือก ${t.tripCode}`}
+                              />
+                              <span className="text-center text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight tabular-nums">
+                                {i + 1}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9]">
+                            <Link href={`/payment/advance/${t.tripCode}`} className="text-[#265ED6] text-base font-normal font-['IBM_Plex_Sans_Thai'] underline leading-6 tracking-tight">
+                              {t.tripCode}
+                            </Link>
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">{t.date}</td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9]">
+                            <TripTypeBadge tripType={t.tripType} />
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">{t.tripRound.replace(":", " : ")}</td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
+                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.program}</div>
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
+                            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.guide}</div>
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
+                            <div className="flex items-start gap-2">
+                              <span
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] mt-0.5 shrink-0"
+                                style={{ backgroundColor: bankColor }}
+                              >
+                                ฿
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                                  {t.bankNo}
+                                </div>
+                                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">
+                                  {t.guide}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.paxAdv}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">
-                          {formatMoney(adv)}
-                        </td>
-                        {showSlipColumn ? (
-                          <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                            {!slip.preview ? (
-                              <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-white mx-auto" />
-                            ) : (
-                              <div className="w-8 h-8 rounded border border-[#D9D9D9] bg-[#ECECEC] relative mx-auto">
-                                {slip.extraCount ? (
-                                  <span className="absolute inset-0 bg-black/45 text-white text-sm font-semibold flex items-center justify-center">
-                                    +{slip.extraCount}
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
                           </td>
-                        ) : null}
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-center">
-                          <ActionMenu
-                            tripCode={t.tripCode}
-                            onApprove={() => handleApprove(t.id)}
-                          />
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">{t.paxAdv}</td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap">
+                            {formatMoney(adv)}
+                          </td>
+                          <td className="p-2 h-16 border-l border-[#D9D9D9] text-center">
+                            <ActionMenu
+                              tripCode={t.tripCode}
+                              variant="pending"
+                              onApprove={() => handleApprove(t.id)}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {shown.length > 0 && (
+                    <tfoot>
+                      <tr className="h-12 border-t border-[#D9D9D9] bg-white">
+                        <td colSpan={9} className="px-4 py-3 text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Total</td>
+                        <td className="px-4 py-3 text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight text-right whitespace-nowrap">
+                          {formatMoney(shownTotal)}
                         </td>
+                        <td />
                       </tr>
-                    );
-                  })}
-                </tbody>
-                {shown.length > 0 && (
-                  <tfoot>
-                    <tr className="h-12 border-t border-[#D9D9D9] bg-white">
-                      <td colSpan={9} className="px-4 py-3 text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Total</td>
-                      <td className="px-4 py-3 text-[#265ED6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight text-right whitespace-nowrap">
-                        {formatMoney(shownTotal)}
-                      </td>
-                      {showSlipColumn ? <td /> : null}
-                      <td />
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             </div>
-
-          </div>
+          )}
 
           {/* Pagination (outside table card) */}
           <div className="w-full flex items-center justify-end gap-4 px-5">
@@ -409,6 +833,22 @@ export default function AdvanceListPage() {
 
         <Footer />
       </div>
+
+      {slipModalTrip ? (
+        <AttachmentSlipModal
+          open
+          onClose={() => setSlipModalTrip(null)}
+          trip={slipModalTrip}
+          localStatus={slipModalTrip.status}
+          grandTotal={
+            advanceResolveMainAdvTotal(slipModalTrip) + advanceResolveExtraAdvTotal(slipModalTrip)
+          }
+          onConfirmSuccess={src => {
+            advanceSetTripSlipPreviewSrc(slipModalTrip.tripCode, src);
+            setSlipModalTrip(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
