@@ -1,399 +1,511 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
-import { INIT_TRIPS, Trip, calcAdvTotal, calcActTotal } from "../lib/payment-data";
 import TripTypeBadge from "../components/TripTypeBadge";
 import { formatPaymentMoney } from "../components/payment-table-styles";
+import { expenseApplyClientTripStatus } from "../lib/expense-client-state";
+import type { TripStatus } from "../lib/payment-data";
 
-const IconTotalTrips = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
-    <path d="M2 19.5V7.625C2 6.73 2.73 6 3.625 6H8V4.5C8 3.672 8.672 3 9.5 3H14.5C15.328 3 16 3.672 16 4.5V6H20.375C21.27 6 22 6.73 22 7.625V19.5C22 20.328 21.328 21 20.5 21H3.5C2.672 21 2 20.328 2 19.5Z" stroke="#FD5C04" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M7 12H11.375M12.625 12H17M12 8.5V15.5" stroke="#FD5C04" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+type BalanceTab = "Pending" | "Completed";
 
-const IconTotalAdvance = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
-    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#1D4ED8" strokeWidth={1.5} />
-    <path d="M12 6V8M12 16V18" stroke="#1D4ED8" strokeWidth={1.5} strokeLinecap="round" />
-    <path d="M8.5 9.5C8.5 8.119 9.619 7 11 7H12.5C13.881 7 15 8.119 15 9.5C15 10.881 13.881 12 12.5 12H11.5C10.119 12 9 13.119 9 14.5C9 15.881 10.119 17 11.5 17H13C14.381 17 15.5 15.881 15.5 14.5" stroke="#1D4ED8" strokeWidth={1.5} strokeLinecap="round" />
-  </svg>
-);
+type SummaryCard = {
+  label: string;
+  value: string;
+  iconBg: string;
+  icon: ReactNode;
+};
 
-const IconTotalExpense = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
-    <path d="M19 7H5C3.895 7 3 7.895 3 9V19C3 20.105 3.895 21 5 21H19C20.105 21 21 20.105 21 19V9C21 7.895 20.105 7 19 7Z" stroke="#059669" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M16 7V6C16 4.895 15.105 4 14 4H10C8.895 4 8 4.895 8 6V7" stroke="#059669" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M9 12H15M9 16H12" stroke="#059669" strokeWidth={1.5} strokeLinecap="round" />
-  </svg>
-);
+type BalanceRow = {
+  id: number;
+  tripCode: string;
+  tripType: "Join In" | "Private";
+  program: string;
+  guide: string;
+  advPax: number;
+  advance: number;
+  actPax: number;
+  actual: number;
+  balance: number;
+  status: TripStatus;
+};
 
-const IconNetBalance = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
-    <path d="M12 3L3 8.5V15.5L12 21L21 15.5V8.5L12 3Z" stroke="#7C3AED" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M12 3V21M3 8.5L21 8.5" stroke="#7C3AED" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+const completedRows: BalanceRow[] = [
+  {
+    id: 1,
+    tripCode: "EC25A9K3",
+    tripType: "Join In",
+    program: "Damnoen + Buffalo Cafe + Maeklong",
+    guide: "G1",
+    advPax: 20,
+    advance: 23800,
+    actPax: 19,
+    actual: 23085,
+    balance: -955,
+    status: "Completed",
+  },
+];
 
-function ConfirmModal({ trip, bal, onClose, onConfirm }: {
-  trip: Trip; bal: number; onClose: () => void; onConfirm: () => void;
-}) {
-  const [slips, setSlips] = useState<boolean[]>([]);
+const pendingRows: BalanceRow[] = [
+  {
+    id: 1,
+    tripCode: "EC25DM35",
+    tripType: "Join In",
+    program: "Damnoen + Buffalo Cafe + Maeklong",
+    guide: "G2",
+    advPax: 35,
+    advance: 18900,
+    actPax: 0,
+    actual: 0,
+    balance: 18900,
+    status: "Pending",
+  },
+  {
+    id: 2,
+    tripCode: "EC255D2C",
+    tripType: "Join In",
+    program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
+    guide: "G3",
+    advPax: 20,
+    advance: 15200,
+    actPax: 0,
+    actual: 0,
+    balance: 15200,
+    status: "Pending",
+  },
+  {
+    id: 3,
+    tripCode: "EC25PV01",
+    tripType: "Private",
+    program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+    guide: "G4",
+    advPax: 6,
+    advance: 6800,
+    actPax: 0,
+    actual: 0,
+    balance: 6800,
+    status: "Pending",
+  },
+  {
+    id: 4,
+    tripCode: "EC25PV02",
+    tripType: "Private",
+    program: "Bangkok: Grand Palace, Wat Pho, Chao Phraya River and Wat Arun Full Day Tour",
+    guide: "G5",
+    advPax: 8,
+    advance: 7200,
+    actPax: 0,
+    actual: 0,
+    balance: 7200,
+    status: "Pending",
+  },
+  {
+    id: 5,
+    tripCode: "TF25Z1PW",
+    tripType: "Join In",
+    program: "Phuket : Maya Bay, Phi Phi & Bamboo Islands with Lunch",
+    guide: "G6",
+    advPax: 20,
+    advance: 12400,
+    actPax: 0,
+    actual: 0,
+    balance: 12400,
+    status: "Pending",
+  },
+];
+
+const tableHeaders = [
+  { label: "#", className: "w-16 text-center bg-[#142B41]" },
+  { label: "Trip Code", className: "w-[130px] text-left bg-[#142B41]" },
+  { label: "Trip Type", className: "w-[104px] text-center bg-[#142B41]" },
+  { label: "Program", className: "text-left bg-[#142B41]" },
+  { label: "Guide", className: "w-[130px] text-left bg-[#142B41]" },
+  { label: "Adv.Pax", className: "w-20 text-right bg-[#265ED6]" },
+  { label: "Advance", className: "w-[110px] text-right bg-[#265ED6]" },
+  { label: "Act.Pax", className: "w-20 text-right bg-[#FD5C04]" },
+  { label: "Actual", className: "w-[120px] text-right bg-[#FD5C04]" },
+  { label: "Balance", className: "w-[120px] text-right bg-[#1CB579]" },
+  { label: "Action", className: "w-20 text-center bg-[#142B41]" },
+] as const;
+
+function CalendarIcon() {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-7 w-[520px] max-w-[95vw] shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-bold text-gray-800">ยืนยันปิดบัญชี</h3>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
-        </div>
-        <div className="text-sm text-gray-600 space-y-1.5 leading-relaxed mb-4">
-          <div>Trip: <strong>{trip.tripCode}</strong></div>
-          <div>Bank: <strong>{trip.bankNo} ({trip.bankName})</strong></div>
-          <div className={`mt-3 p-3 rounded-lg font-semibold text-sm ${
-            bal < 0 ? "bg-red-50 text-red-700" : bal > 0 ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-600"
-          }`}>
-            {bal < 0
-              ? `⬆️ จ่ายเพิ่มให้ Guide ฿${Math.abs(bal).toLocaleString()}`
-              : bal > 0
-                ? `⬇️ เก็บคืนจาก Guide ฿${bal.toLocaleString()}`
-                : "✅ ยอดพอดี"
-            }
-          </div>
-        </div>
-
-        <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center mb-4">
-          <div className="text-2xl mb-1">📎</div>
-          <p className="text-sm text-gray-400 mb-3">Upload Transfer Slip</p>
-          <div className="flex justify-center gap-3">
-            {slips.map((_, i) => (
-              <div key={i} className="relative w-14 h-14 rounded-xl bg-green-50 border border-green-200 flex items-center justify-center text-xl">
-                🖼️
-                <button type="button" onClick={() => setSlips(ss => ss.filter((_, j) => j !== i))}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  ×
-                </button>
-              </div>
-            ))}
-            {slips.length < 3 && (
-              <button type="button" onClick={() => setSlips(ss => [...ss, true])}
-                className="w-14 h-14 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-2xl text-gray-300 hover:border-gray-400 hover:text-gray-400">
-                +
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-3 justify-end">
-          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50">
-            Cancel
-          </button>
-          <button type="button" onClick={onConfirm} className="px-4 py-2 text-sm font-semibold text-white bg-blue-500 rounded-lg hover:bg-blue-600">
-            ✓ ปิดบัญชี
-          </button>
-        </div>
-      </div>
-    </div>
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <path d="M8 2V5M16 2V5M3.5 9H20.5M4 5.5H20C20.5523 5.5 21 5.94772 21 6.5V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6.5C3 5.94772 3.44772 5.5 4 5.5Z" stroke="#292D32" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8.5" cy="13.5" r="0.5" fill="#292D32" />
+      <circle cx="12" cy="13.5" r="0.5" fill="#292D32" />
+      <circle cx="15.5" cy="13.5" r="0.5" fill="#292D32" />
+      <circle cx="8.5" cy="17" r="0.5" fill="#292D32" />
+      <circle cx="12" cy="17" r="0.5" fill="#292D32" />
+      <circle cx="15.5" cy="17" r="0.5" fill="#292D32" />
+    </svg>
   );
 }
 
-function Toast({ msg, type }: { msg: string; type: "success" | "error" }) {
+function SearchIcon() {
   return (
-    <div className={`fixed bottom-7 right-7 rounded-xl px-5 py-3 text-sm font-semibold shadow-lg z-50 flex items-center gap-2 ${
-      type === "error" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
-    }`}>
-      {type === "error" ? "⚠️" : "✅"} {msg}
-    </div>
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <circle cx="11" cy="11" r="8" stroke="#292D32" strokeWidth="1.5" />
+      <path d="M20 20L17 17" stroke="#292D32" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }
 
-const formatMoney = formatPaymentMoney;
+function ExportIcon() {
+  return (
+    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" className="shrink-0">
+      <path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 15.5V18C4 19.1046 4.89543 20 6 20H18C19.1046 20 20 19.1046 20 18V15.5" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export default function BalancePage() {
-  const trips = INIT_TRIPS;
-  const [closed, setClosed] = useState<Record<number, boolean>>({ 3: true });
-  const [confirmModal, setConfirmModal] = useState<{ trip: Trip; bal: number } | null>(null);
-  const [toast, setToast]               = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [search, setSearch]             = useState("");
-  const [date, setDate]                 = useState("17/12/2025");
+  const [date, setDate] = useState("17/12/2025");
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<BalanceTab>("Pending");
 
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 2800);
-  };
-
-  const totalAdv = trips.reduce((s, t) => s + calcAdvTotal(t), 0);
-  const totalExp = trips.reduce((s, t) => s + calcActTotal(t), 0);
-  const netBal   = totalAdv - totalExp;
-
-  const tableHeaders = [
-    "#",
-    "Trip Code",
-    "Travel Date",
-    "Trip Type",
-    "Trip Round",
-    "Program",
-    "Guide",
-    "Pax",
-    "Advance",
-    "Expense",
-    "Balance",
-    "สถานะ",
-    "",
-  ] as const;
-
-  const filtered = trips.filter(t =>
-    t.tripCode.toLowerCase().includes(search.toLowerCase()) ||
-    t.program.toLowerCase().includes(search.toLowerCase()) ||
-    t.guide.toLowerCase().includes(search.toLowerCase())
+  const balanceRows = useMemo(
+    () => expenseApplyClientTripStatus([...pendingRows, ...completedRows]),
+    []
   );
+
+  const pendingBalanceRows = useMemo(
+    () => balanceRows.filter((row) => row.status === "Pending" || row.status === "Approved"),
+    [balanceRows]
+  );
+
+  const completedBalanceRows = useMemo(
+    () => balanceRows.filter((row) => row.status === "Completed"),
+    [balanceRows]
+  );
+
+  const counts = useMemo(
+    () => ({
+      Pending: pendingBalanceRows.length,
+      Completed: completedBalanceRows.length,
+    }),
+    [completedBalanceRows.length, pendingBalanceRows.length]
+  );
+
+  const rows = useMemo(() => {
+    const source = activeTab === "Completed" ? completedBalanceRows : pendingBalanceRows;
+    const keyword = search.trim().toLowerCase();
+
+    if (!keyword) return source;
+
+    return source.filter((row) =>
+      [row.tripCode, row.program, row.guide].some((value) => value.toLowerCase().includes(keyword))
+    );
+  }, [activeTab, completedBalanceRows, pendingBalanceRows, search]);
+
+  const showSlipColumn = activeTab === "Completed";
+  const visibleTableHeaders = useMemo(
+    () =>
+      showSlipColumn
+        ? [...tableHeaders.slice(0, 10), { label: "Slip", className: "w-20 text-center bg-[#142B41]" }, tableHeaders[10]]
+        : tableHeaders,
+    [showSlipColumn]
+  );
+
+  const summaryCards = useMemo<SummaryCard[]>(() => {
+    const amountTrip = rows.length;
+    const totalAdvance = rows.reduce((sum, row) => sum + row.advance, 0);
+    const totalExpense = rows.reduce((sum, row) => sum + row.actual, 0);
+    const total = rows.reduce((sum, row) => sum + row.advance + row.actual, 0);
+
+    return [
+      {
+        label: "Amount Trip",
+        value: String(amountTrip),
+        iconBg: "bg-[#DCEEFF]",
+        icon: (
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="3" stroke="#265ED6" strokeWidth="1.5" />
+            <rect x="7" y="7" width="10" height="10" rx="1.5" stroke="#265ED6" strokeWidth="1.5" />
+          </svg>
+        ),
+      },
+      {
+        label: "Total Advance",
+        value: formatPaymentMoney(totalAdvance),
+        iconBg: "bg-[#FFF5D9]",
+        icon: (
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#FFC107" strokeWidth="1.5" />
+            <path d="M12 7V17M9.5 9.5C9.5 8.672 10.172 8 11 8H13C13.828 8 14.5 8.672 14.5 9.5C14.5 10.328 13.828 11 13 11H11C10.172 11 9.5 11.672 9.5 12.5C9.5 13.328 10.172 14 11 14H13C13.828 14 14.5 14.672 14.5 15.5" stroke="#FFC107" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        ),
+      },
+      {
+        label: "Total Expense",
+        value: formatPaymentMoney(totalExpense),
+        iconBg: "bg-[#FFCAAD]",
+        icon: (
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="4" stroke="#FD5C04" strokeWidth="1.5" />
+            <path d="M12 7V17M9.75 9.25L12 7L14.25 9.25" stroke="#FD5C04" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ),
+      },
+      {
+        label: "Total",
+        value: formatPaymentMoney(total),
+        iconBg: "bg-[#E6F3E6]",
+        icon: (
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="14" height="14" rx="3" stroke="#007800" strokeWidth="1.5" />
+            <path d="M14 14L21 21" stroke="#007800" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="18" cy="18" r="3" stroke="#007800" strokeWidth="1.5" />
+          </svg>
+        ),
+      },
+    ];
+  }, [rows]);
+
+  const totals = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        acc.advance += row.advance;
+        acc.actual += row.actual;
+        acc.balance += row.balance;
+        return acc;
+      },
+      { advance: 0, actual: 0, balance: 0 }
+    );
+  }, [rows]);
 
   return (
     <div className="flex min-h-screen font-['IBM_Plex_Sans_Thai']">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header />
 
-        <main className="flex-1 bg-stone-50 p-6 flex flex-col gap-6 items-end">
-          <div className="w-full inline-flex items-center justify-between gap-4">
+        <main className="flex flex-1 flex-col gap-6 bg-stone-50 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-[#B9B9B9] text-base font-medium">Expense</span>
-              <span className="text-[#2A2A2A]">›</span>
-              <span className="text-[#265ED6] text-lg font-semibold">Balance</span>
+              <span className="text-base font-medium leading-6 tracking-tight text-[#B9B9B9]">Expense</span>
+              <span className="text-[#292D32]">›</span>
+              <span className="text-lg font-semibold leading-7 tracking-tight text-[#265ED6]">Expense</span>
             </div>
-            <div className="inline-flex items-center gap-4">
-              <div className="w-80 flex items-center gap-2 bg-white rounded-lg border border-[#D9D9D9] px-3 py-2">
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-[#2A2A2A]">
-                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+
+            <div className="flex flex-wrap items-center justify-end gap-4">
+              <div className="flex w-80 items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-3 py-2">
+                <CalendarIcon />
                 <input
-                  type="text"
                   value={date}
-                  onChange={e => setDate(e.target.value)}
-                  className="flex-1 outline-none text-base text-[#2A2A2A]"
+                  onChange={(e) => setDate(e.target.value)}
+                  className="flex-1 bg-transparent text-base font-normal leading-6 tracking-tight text-[#2A2A2A] outline-none"
                 />
               </div>
-              <div className="w-80 flex items-center gap-2 bg-white rounded-lg border border-[#D9D9D9] px-3 py-2">
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" className="text-[#2A2A2A]">
-                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+
+              <div className="flex w-80 items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-3 py-2">
+                <SearchIcon />
                 <input
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value)}
                   placeholder="Enter search"
-                  className="flex-1 outline-none text-base text-[#2A2A2A] placeholder:text-[#B9B9B9]"
+                  className="flex-1 bg-transparent text-base font-normal leading-6 tracking-tight text-[#2A2A2A] outline-none placeholder:text-[#B9B9B9]"
                 />
               </div>
-              <button type="button" className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-[#D9D9D9] text-[#2A2A2A]">
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15V19C21 20.105 20.105 21 19 21H5C3.895 21 3 20.105 3 19V15" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M17 8L12 3L7 8M12 3V15" stroke="#2A2A2A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="font-medium">Export</span>
-                <span className="text-sm">▼</span>
+
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-2 text-base font-medium leading-6 tracking-tight text-[#2A2A2A]"
+              >
+                <ExportIcon />
+                <span>Export</span>
+                <span className="text-xs">▼</span>
               </button>
             </div>
           </div>
 
-          <div className="w-full grid grid-cols-4 gap-6">
-            <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-              <div className="self-stretch flex flex-col justify-start items-start gap-3">
-                <div className="self-stretch inline-flex justify-start items-start gap-4">
-                  <div className="flex-1 flex flex-col justify-start items-start gap-2">
-                    <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{trips.length}</div>
-                    <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Total Trips</div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+            {summaryCards.map((card) => (
+              <div key={card.label} className="flex min-w-0 flex-col gap-6 rounded-xl border border-[#E7E7E9] bg-white p-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <div className="text-[28px] font-normal leading-10 text-[#1A1A1A]">{card.value}</div>
+                    <div className="text-base font-normal leading-6 text-[#1A1A1A]">{card.label}</div>
                   </div>
-                  <div className="p-2.5 bg-[#DCEEFF] rounded-xl flex justify-center items-center shrink-0">
-                    <IconTotalTrips />
-                  </div>
+                  <div className={`flex shrink-0 items-center justify-center rounded-xl p-2.5 ${card.iconBg}`}>{card.icon}</div>
                 </div>
               </div>
-            </div>
-
-            <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-              <div className="self-stretch flex flex-col justify-start items-start gap-3">
-                <div className="self-stretch inline-flex justify-start items-start gap-4">
-                  <div className="flex-1 flex flex-col justify-start items-start gap-2">
-                    <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{formatMoney(totalAdv)}</div>
-                    <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Total Advance</div>
-                  </div>
-                  <div className="p-2.5 bg-[#FFF5D9] rounded-xl flex justify-center items-center shrink-0">
-                    <IconTotalAdvance />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-              <div className="self-stretch flex flex-col justify-start items-start gap-3">
-                <div className="self-stretch inline-flex justify-start items-start gap-4">
-                  <div className="flex-1 flex flex-col justify-start items-start gap-2">
-                    <div className="text-[#1a1a1a] text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10">{formatMoney(totalExp)}</div>
-                    <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Total Expense</div>
-                  </div>
-                  <div className="p-2.5 bg-[#e6f3e6] rounded-xl flex justify-center items-center shrink-0">
-                    <IconTotalExpense />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 p-6 bg-white rounded-xl border border-[#E7E7E9] flex flex-col justify-start items-start gap-6">
-              <div className="self-stretch flex flex-col justify-start items-start gap-3">
-                <div className="self-stretch inline-flex justify-start items-start gap-4">
-                  <div className="flex-1 flex flex-col justify-start items-start gap-2">
-                    <div className={`text-[28px] font-normal font-['IBM_Plex_Sans_Thai'] leading-10 ${
-                      netBal > 0 ? "text-green-700" : netBal < 0 ? "text-red-700" : "text-[#1a1a1a]"
-                    }`}>
-                      {netBal >= 0 ? "" : "−"}{formatMoney(Math.abs(netBal))}
-                    </div>
-                    <div className="text-[#1a1a1a] text-base font-normal font-['IBM_Plex_Sans_Thai'] leading-6">Net Balance</div>
-                  </div>
-                  <div className="p-2.5 bg-[#ede9fe] rounded-xl flex justify-center items-center shrink-0">
-                    <IconNetBalance />
-                  </div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          <div className="w-full bg-white rounded-lg border border-[#D9D9D9] overflow-hidden">
-            <div className="overflow-x-auto overflow-y-hidden">
-              <table className="w-full min-w-[1100px] table-fixed border-collapse">
+          <div className="flex items-center gap-2">
+            {[
+              { key: "Pending" as const, count: counts.Pending },
+              { key: "Completed" as const, count: counts.Completed },
+            ].map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`inline-flex items-center gap-2 p-2 ${
+                    isActive ? "border-b-4 border-[#FE7931]" : ""
+                  }`}
+                >
+                  <span className={`text-base font-medium leading-6 tracking-tight ${isActive ? "text-[#265ED6]" : "text-[#142B41]"}`}>
+                    {tab.key}
+                  </span>
+                  <span className="flex items-center justify-center overflow-hidden rounded-md bg-[#265ED6] px-[7px] text-base font-medium leading-6 tracking-tight text-white">
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-[#D9D9D9] bg-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1400px] w-full table-fixed border-collapse">
                 <colgroup>
-                  <col className="w-14" />
-                  <col className="w-[120px]" />
-                  <col className="w-[100px]" />
-                  <col className="w-[100px]" />
-                  <col className="w-[96px]" />
+                  <col className="w-16" />
+                  <col className="w-[130px]" />
+                  <col className="w-[104px]" />
                   <col />
-                  <col className="w-[180px]" />
-                  <col className="w-14" />
+                  <col className="w-[130px]" />
+                  <col className="w-20" />
                   <col className="w-[110px]" />
-                  <col className="w-[110px]" />
+                  <col className="w-20" />
                   <col className="w-[120px]" />
-                  <col className="w-[100px]" />
-                  <col className="w-[100px]" />
+                  <col className="w-[120px]" />
+                  {showSlipColumn ? <col className="w-20" /> : null}
+                  <col className="w-20" />
                 </colgroup>
                 <thead>
-                  <tr className="bg-[#142B41] text-white h-11">
-                    {tableHeaders.map((h, i) => (
+                  <tr>
+                    {visibleTableHeaders.map((header, index) => (
                       <th
-                        key={`${h}-${i}`}
-                        className={`p-2 h-11 text-white text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight whitespace-nowrap ${
-                          i > 0 ? "border-l border-white" : ""
-                        } ${h === "Balance" ? "bg-[#265ED6]" : ""} ${
-                          h === "#" || h === "Trip Type" || h === "สถานะ" || h === ""
-                            ? "text-center"
-                            : h === "Pax" || h === "Advance" || h === "Expense" || h === "Balance"
-                              ? "text-right"
-                              : "text-left"
-                        }`}
+                        key={header.label}
+                        className={`h-11 p-2 text-base font-medium leading-6 tracking-tight text-white ${
+                          index > 0 ? "border-l border-white" : ""
+                        } ${header.className}`}
                       >
-                        {h}
+                        {header.label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={tableHeaders.length} className="py-12 text-center text-gray-400">ไม่พบข้อมูล</td>
-                    </tr>
-                  )}
-                  {filtered.map((t, i) => {
-                    const adv = calcAdvTotal(t);
-                    const exp = calcActTotal(t);
-                    const bal = adv - exp;
-                    const isClosed = !!closed[t.id];
-                    return (
-                      <tr key={t.id} className={`h-16 border-b border-[#D9D9D9] ${i % 2 === 1 ? "bg-[#F8F8F8]" : "bg-white"}`}>
-                        <td className="p-2 h-16 text-center text-[#2A2A2A] text-base font-normal leading-6 tracking-tight">{i + 1}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                          <Link href={`/payment/advance/${t.tripCode}`} className="text-[#265ED6] text-base font-normal underline leading-6 tracking-tight">
-                            {t.tripCode}
-                          </Link>
+                  {rows.map((row) => (
+                    <tr key={`${activeTab}-${row.tripCode}`} className="border-b border-[#D9D9D9] last:border-b-0">
+                      <td className="h-16 bg-white p-2 text-center text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {row.id}
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2">
+                        <Link href={`/payment/balance/${row.tripCode}`} className="text-base font-normal leading-6 tracking-tight text-[#265ED6] underline">
+                          {row.tripCode}
+                        </Link>
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-center">
+                        <div className="flex justify-center">
+                          <TripTypeBadge tripType={row.tripType} />
+                        </div>
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        <div className="line-clamp-1">{row.program}</div>
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        <div className="line-clamp-1">{row.guide}</div>
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-right text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {row.advPax}
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-right text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {formatPaymentMoney(row.advance)}
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-right text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {row.actPax}
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-right text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {formatPaymentMoney(row.actual)}
+                      </td>
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-right text-base font-normal leading-6 tracking-tight text-[#2A2A2A]">
+                        {row.balance < 0 ? `-${formatPaymentMoney(Math.abs(row.balance))}` : formatPaymentMoney(row.balance)}
+                      </td>
+                      {showSlipColumn ? (
+                        <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-center">
+                          <div className="mx-auto h-8 w-8 rounded border border-[#D9D9D9] bg-white" />
                         </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal leading-6 tracking-tight whitespace-nowrap">{t.date}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9]">
-                          <TripTypeBadge tripType={t.tripType} />
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A] text-base font-normal leading-6 tracking-tight whitespace-nowrap">{t.tripRound.replace(":", " : ")}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
-                          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal leading-6 tracking-tight">{t.program}</div>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-[#2A2A2A]">
-                          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-base font-normal leading-6 tracking-tight">{t.guide}</div>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal leading-6 tracking-tight">{t.checkedIn}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#265ED6] text-base font-normal leading-6 tracking-tight whitespace-nowrap">{formatMoney(adv)}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-[#2A2A2A] text-base font-normal leading-6 tracking-tight whitespace-nowrap">{formatMoney(exp)}</td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-right text-base font-semibold leading-6 tracking-tight whitespace-nowrap">
-                          <span
-                            className={bal > 0 ? "text-green-700" : bal < 0 ? "text-red-700" : "text-[#2A2A2A]"}
-                          >
-                            {bal > 0 ? "+" : bal < 0 ? "−" : ""}{formatMoney(Math.abs(bal))}
+                      ) : null}
+                      <td className="h-16 border-l border-[#D9D9D9] bg-white p-2 text-center">
+                        <button type="button" className="inline-flex h-6 items-center justify-center px-1.5">
+                          <span className="flex gap-1">
+                            <span className="h-1 w-1 rounded-full bg-[#142B41]" />
+                            <span className="h-1 w-1 rounded-full bg-[#142B41]" />
+                            <span className="h-1 w-1 rounded-full bg-[#142B41]" />
                           </span>
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-center">
-                          {isClosed ? (
-                            <span className="rounded-md px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700">✓ ปิดแล้ว</span>
-                          ) : (
-                            <span className="rounded-md px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">รอปิด</span>
-                          )}
-                        </td>
-                        <td className="p-2 h-16 border-l border-[#D9D9D9] text-center">
-                          {!isClosed && (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmModal({ trip: t, bal })}
-                              className="bg-[#265ED6] hover:bg-[#1e4bb5] text-white text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors"
-                            >
-                              Confirm
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} className="h-12 border-t border-[#D9D9D9] bg-white px-4 text-left text-base font-medium leading-6 tracking-tight text-[#265ED6]">
+                      Total
+                    </td>
+                    <td className="h-12 border-t border-[#D9D9D9] bg-white px-2 text-right text-base font-medium leading-6 tracking-tight text-[#265ED6]">
+                      {formatPaymentMoney(totals.advance)}
+                    </td>
+                    <td className="h-12 border-t border-[#D9D9D9] bg-white" />
+                    <td className="h-12 border-t border-[#D9D9D9] bg-white px-2 text-right text-base font-medium leading-6 tracking-tight text-[#FD5C04]">
+                      {formatPaymentMoney(totals.actual)}
+                    </td>
+                    <td className="h-12 border-t border-[#D9D9D9] bg-white px-2 text-right text-base font-medium leading-6 tracking-tight text-[#2A2A2A]">
+                      {totals.balance < 0 ? `-${formatPaymentMoney(Math.abs(totals.balance))}` : formatPaymentMoney(totals.balance)}
+                    </td>
+                    <td colSpan={showSlipColumn ? 2 : 1} className="h-12 border-t border-[#D9D9D9] bg-white" />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
 
-          <div className="w-full flex items-center justify-end gap-4 px-5">
-            <button type="button" className="h-6 px-2 bg-white rounded border border-[#B9B9B9] inline-flex items-center gap-1 text-sm text-[#3E3939]">
-              15 / page <span className="text-[10px]">▼</span>
+          <div className="flex items-center justify-end gap-6">
+            <button type="button" className="inline-flex h-6 items-center gap-1 rounded border border-[#B9B9B9] bg-white px-2 text-sm font-normal leading-[18px] tracking-tight text-[#3E3939]">
+              15 / page
+              <span className="text-[10px]">▼</span>
             </button>
-            <div className="flex items-center gap-2">
-              <button type="button" className="w-6 h-6 rounded border border-[#E1E1E1] text-[#3E3939]">‹</button>
-              <button type="button" className="w-6 h-6 rounded bg-[#2A4B6A] text-white text-sm">1</button>
-              <button type="button" className="w-6 h-6 rounded border border-[#E1E1E1] text-[#3E3939] text-sm">›</button>
+
+            <div className="flex items-center gap-4">
+              <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-[#3E3939]">
+                ‹
+              </button>
+              <div className="flex items-center gap-2">
+                <button type="button" className="flex h-6 w-6 items-center justify-center rounded bg-[#2A4B6A] text-sm font-normal leading-[18px] tracking-tight text-white">
+                  1
+                </button>
+                <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-sm font-normal leading-[18px] tracking-tight text-[#3E3939]">
+                  2
+                </button>
+                <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-sm font-normal leading-[18px] tracking-tight text-[#3E3939]">
+                  ...
+                </button>
+                <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-sm font-normal leading-[18px] tracking-tight text-[#3E3939]">
+                  9
+                </button>
+                <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-sm font-normal leading-[18px] tracking-tight text-[#3E3939]">
+                  10
+                </button>
+              </div>
+              <button type="button" className="flex h-6 w-6 items-center justify-center rounded border border-[#E1E1E1] bg-white text-[#3E3939]">
+                ›
+              </button>
             </div>
           </div>
         </main>
 
         <Footer />
       </div>
-
-      {confirmModal && (
-        <ConfirmModal
-          trip={confirmModal.trip}
-          bal={confirmModal.bal}
-          onClose={() => setConfirmModal(null)}
-          onConfirm={() => {
-            setClosed(c => ({ ...c, [confirmModal.trip.id]: true }));
-            setConfirmModal(null);
-            showToast("ปิดบัญชีเรียบร้อย ✓");
-          }}
-        />
-      )}
-      {toast && <Toast msg={toast.msg} type={toast.type} />}
     </div>
   );
 }

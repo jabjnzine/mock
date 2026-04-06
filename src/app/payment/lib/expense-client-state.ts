@@ -11,6 +11,7 @@ function cloneExpenseDraft(sections: ExpenseSections): ExpenseSections {
 const statusByTripCode = new Map<string, TripStatus>();
 const expenseDraftByTripCode = new Map<string, ExpenseSections>();
 const expenseTotalByTripCode = new Map<string, number>();
+const slipPreviewSrcByTripCode = new Map<string, string>();
 
 export function expenseSetTripExpenseDraft(tripCode: string, sections: ExpenseSections) {
   expenseDraftByTripCode.set(tripCode, cloneExpenseDraft(sections));
@@ -31,6 +32,14 @@ export function expenseResolveActTotal(trip: Trip, fallbackTotal: number): numbe
 
 export function expenseGetClientTripStatus(tripCode: string): TripStatus | undefined {
   return statusByTripCode.get(tripCode);
+}
+
+export function expenseSetTripSlipPreviewSrc(tripCode: string, src: string) {
+  slipPreviewSrcByTripCode.set(tripCode, src);
+}
+
+export function expenseGetTripSlipPreviewSrc(tripCode: string): string | undefined {
+  return slipPreviewSrcByTripCode.get(tripCode);
 }
 
 export function expenseMarkTripStatus(tripCode: string, status: TripStatus) {

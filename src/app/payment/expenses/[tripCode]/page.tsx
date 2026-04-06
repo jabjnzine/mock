@@ -372,8 +372,9 @@ function EditableExpenseSectionTable({
   const totalBalance = totalRows.reduce((sum, row) => sum + (row.payment === "Cash" ? Number(row.balance || 0) : 0), 0);
   const showOption = title === "Other Expense" || title === "Extra Expense";
   const itemWidth = "flex-1";
-  const paymentWidth = title === "Vehicle Cost" ? "w-[120px]" : "w-[82px]";
-  const showCostType = title !== "Vehicle Cost";
+  const isVehicle = ["Vehicle Cost", "Supplier Cost", "Own Vehicle Cost"].includes(title);
+  const paymentWidth = isVehicle ? "w-[120px]" : "w-[82px]";
+  const showCostType = !isVehicle;
   const showDelete = title === "Extra Expense" && Boolean(onDeleteRow);
 
   return (
@@ -393,7 +394,7 @@ function EditableExpenseSectionTable({
             <div className="w-4 h-4 rounded border border-white/80" />
           </div>
           <div className={`${itemWidth} h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center overflow-hidden`}>
-            <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">{title === "Guide" ? "Guide Items" : title === "Vehicle Cost" ? "Vehicle" : "Items"}</div>
+            <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">{title === "Guide" ? "Guide Items" : isVehicle ? "Vehicle" : "Items"}</div>
           </div>
           {showOption ? <div className="w-[120px] h-11 p-2 bg-[#142b41] border-l border-white flex items-center"><div className="text-white text-base font-medium">Option</div></div> : null}
           <div className={`${paymentWidth} h-11 p-2 bg-[#142b41] border-l border-white flex items-center`}><div className="text-white text-base font-medium">Payment</div></div>
@@ -676,73 +677,82 @@ function GuideSectionTable({ rows }: { rows: SectionTableRow[] }) {
   );
 }
 
-function VehicleSectionTable({ rows, supplier }: { rows: SectionTableRow[]; supplier?: string }) {
+function VehicleSectionTable({ rows, supplier, title = "Vehicle Cost" }: { rows: SectionTableRow[]; supplier?: string; title?: string }) {
   const hasCash = rows.some(row => row.payment === "Cash");
   const totalAdvance = rows.reduce((sum, row) => sum + (row.payment === "Cash" ? Number(row.advCost || 0) : 0), 0);
   const totalExpense = rows.reduce((sum, row) => sum + Number(row.expense || 0), 0);
   const totalBalance = rows.reduce((sum, row) => sum + (row.payment === "Cash" ? Number(row.balance || 0) : 0), 0);
+  const isSupplierTable = title === "Supplier Cost";
+  const totalLabelWidth = isSupplierTable ? "w-[calc(100%-320px)]" : "w-[calc(100%-460px)]";
+  const resolveSupplierVehicle = (value: string) => {
+    const [left, right] = value.split("—").map((part) => part.trim());
+    return {
+      supplierName: supplier ?? left ?? "-",
+      vehicleName: right || value,
+    };
+  };
 
   return (
-    <div className="self-stretch p-6 bg-white inline-flex flex-col justify-center items-start gap-3">
-      <div className="self-stretch inline-flex justify-start items-center gap-2">
-        <span className="text-[#265ed6] text-lg">🚌</span>
-        <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">Vehicle Cost</div>
+    <div className="w-full flex flex-col justify-center items-stretch gap-3">
+      <div className="self-stretch inline-flex justify-start items-center gap-2.5">
+        <div className="flex-1 justify-center text-[#265ed6] text-base font-medium leading-6 tracking-tight">{title}</div>
+        <div className="flex-1 flex justify-end items-center gap-2.5" />
       </div>
-      <div className="self-stretch justify-start text-[#265ed6] text-base font-medium leading-6 tracking-tight">
-        Supplier :{supplier ? <span className="text-[#2a2a2a]"> {supplier}</span> : null}
-      </div>
-      <div className="self-stretch rounded-lg outline -outline-offset-1 outline-[#d9d9d9] flex flex-col justify-center items-start gap-3 overflow-hidden">
-        <div className="self-stretch bg-white rounded-lg outline -outline-offset-1 outline-[#d9d9d9] flex flex-col justify-start items-start">
-          <div className="self-stretch flex flex-col justify-start items-start">
+      <div className="w-full rounded-lg outline -outline-offset-1 outline-[#d9d9d9] overflow-hidden">
+        <div className="w-full bg-white rounded-lg outline -outline-offset-1 outline-[#d9d9d9] flex flex-col justify-start items-stretch">
+          <div className="w-full flex flex-col justify-start items-stretch">
             <div className="self-stretch rounded-tl-lg rounded-tr-lg inline-flex justify-start items-start overflow-hidden">
               <div className="w-16 h-11 p-2 bg-[#142b41] flex justify-center items-center gap-2.5 overflow-hidden">
                 <div className="w-[34px] flex justify-start items-center gap-1">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">#</div>
                 </div>
               </div>
+              {isSupplierTable ? <div className="w-[222px] h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden"><div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Supplier Name</div></div> : null}
               <div className="flex-1 h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden">
                 <div className="flex justify-start items-center gap-2">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Vehicle</div>
                 </div>
               </div>
+              {!isSupplierTable ? <div className="flex-1 h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden"><div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Item</div></div> : null}
               <div className="w-[120px] h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden">
                 <div className="flex justify-start items-center gap-2">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Payment</div>
                 </div>
               </div>
-              <div className="w-24 h-11 p-2 bg-[#142b41] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
+              {!isSupplierTable ? <div className="w-[120px] h-11 p-2 bg-[#142b41] border-l border-white flex justify-start items-center gap-2.5 overflow-hidden"><div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Cost Type</div></div> : null}
+              <div className="w-[133px] h-11 p-2 bg-[#142b41] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
                 <div className="flex justify-start items-center gap-2">
-                  <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Cost (Unit)</div>
+                  <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Cost</div>
                 </div>
               </div>
               {hasCash ? (
-                <div className="w-[70px] h-11 p-2 bg-[#265ed6] border-l border-white flex justify-center items-center gap-2.5 overflow-hidden">
+                !isSupplierTable ? <div className="w-[70px] h-11 p-2 bg-[#265ed6] border-l border-white flex justify-center items-center gap-2.5 overflow-hidden">
                   <div className="flex justify-start items-center gap-2">
-                    <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Adv.Pax</div>
+                    <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Pax</div>
                   </div>
-                </div>
+                </div> : null
               ) : null}
               {hasCash ? (
-                <div className="w-24 h-11 p-2 bg-[#265ed6] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
+                <div className="w-[110px] h-11 p-2 bg-[#265ed6] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
                   <div className="flex justify-start items-center gap-2">
                     <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Adv. Cost</div>
                   </div>
                 </div>
               ) : null}
               {hasCash ? (
-                <div className="w-[70px] h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-center items-center gap-2.5 overflow-hidden">
+                !isSupplierTable ? <div className="w-[70px] h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-center items-center gap-2.5 overflow-hidden">
                   <div className="flex justify-start items-center gap-2">
-                    <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Act.Pax</div>
+                    <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">AdtPax</div>
                   </div>
-                </div>
+                </div> : null
               ) : null}
-              <div className="w-24 h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
+              <div className="w-[110px] h-11 p-2 bg-[#fd5c04] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
                 <div className="flex justify-start items-center gap-2">
                   <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Expense</div>
                 </div>
               </div>
               {hasCash ? (
-                <div className="w-24 h-11 p-2 bg-[#1cb579] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
+                <div className="w-[100px] h-11 p-2 bg-[#1cb579] border-l border-white flex justify-end items-center gap-2.5 overflow-hidden">
                   <div className="flex justify-start items-center gap-2">
                     <div className="justify-start text-white text-base font-medium leading-6 tracking-tight">Balance</div>
                   </div>
@@ -750,45 +760,48 @@ function VehicleSectionTable({ rows, supplier }: { rows: SectionTableRow[]; supp
               ) : null}
             </div>
           </div>
-          <div className="self-stretch flex flex-col justify-start items-start">
+          <div className="self-stretch flex flex-col justify-start items-stretch">
             {rows.map((row, index) => (
               <div key={row.id} className="self-stretch inline-flex justify-start items-start">
-                <div className="w-16 h-14 p-2 bg-white flex justify-center items-center gap-1 overflow-hidden">
+                <div className={`w-16 h-14 p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} flex justify-center items-center gap-1 overflow-hidden`}>
                   <div className="w-[34px] flex justify-start items-center gap-1">
                     <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{index + 1}</div>
                   </div>
                 </div>
-                <div className="flex-1 h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-start items-center gap-2.5 overflow-hidden">
-                  <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.item}</div>
+                {isSupplierTable ? <div className={`w-[222px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-start items-center gap-2.5 overflow-hidden`}><div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{resolveSupplierVehicle(row.item).supplierName}</div></div> : null}
+                <div className={`flex-1 h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] inline-flex flex-col justify-center items-start gap-1 overflow-hidden`}>
+                  <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{isSupplierTable ? resolveSupplierVehicle(row.item).vehicleName : "-"}</div>
                 </div>
-                <div className="w-[120px] h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-start items-center gap-2.5 overflow-hidden">
+                {!isSupplierTable ? <div className={`flex-1 h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] inline-flex flex-col justify-center items-start gap-1 overflow-hidden`}><div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.item}</div></div> : null}
+                <div className={`w-[120px] h-14 p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-start items-center gap-2.5 overflow-hidden`}>
                   <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.payment}</div>
                 </div>
-                <div className="w-24 h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
+                {!isSupplierTable ? <div className={`w-[120px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-start items-center gap-2.5 overflow-hidden`}><div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.costType}</div></div> : null}
+                <div className={`w-[133px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
                   <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{formatMoney(row.costUnit)}</div>
                 </div>
                 {hasCash ? (
-                  <div className="w-[70px] h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
+                  !isSupplierTable ? <div className={`w-[70px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
                     <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.payment === "Cash" ? (row.advPax ?? "-") : "-"}</div>
-                  </div>
+                  </div> : null
                 ) : null}
                 {hasCash ? (
-                  <div className="w-24 h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
+                  <div className={`w-[110px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
                     <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.payment === "Cash" && row.advCost != null ? formatMoney(row.advCost) : "-"}</div>
                   </div>
                 ) : null}
                 {hasCash ? (
-                  <div className="w-[70px] h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
+                  !isSupplierTable ? <div className={`w-[70px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
                     <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{row.payment === "Cash" ? row.actPax : "-"}</div>
-                  </div>
+                  </div> : null
                 ) : null}
-                <div className="w-24 h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
+                <div className={`w-[110px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
                   <div className="justify-start text-[#2a2a2a] text-base font-normal leading-6 tracking-tight">{formatMoney(row.expense)}</div>
                 </div>
                 {hasCash ? (
-                  <div className="w-24 h-14 p-2 bg-white border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden">
-                    <div className={`justify-start text-base font-normal leading-6 tracking-tight ${Number(row.balance || 0) < 0 ? "text-[#d91616]" : "text-[#2a2a2a]"}`}>
-                      {row.payment === "Cash" && row.balance != null ? formatMoney(row.balance) : "-"}
+                  <div className={`w-[100px] h-[62px] p-2 ${index % 2 === 0 ? "bg-white" : "bg-[#f8f8f8]"} border-l border-[#d9d9d9] flex justify-end items-center gap-2.5 overflow-hidden`}>
+                    <div className={`justify-start text-base font-normal leading-6 tracking-tight ${Number(row.balance || 0) < 0 ? "text-[#d91616]" : "text-[#1cb579]"}`}>
+                      {row.payment === "Cash" && row.balance != null ? formatMoney(row.balance) : "0.00"}
                     </div>
                   </div>
                 ) : null}
@@ -796,22 +809,22 @@ function VehicleSectionTable({ rows, supplier }: { rows: SectionTableRow[]; supp
             ))}
           </div>
           <div className="self-stretch inline-flex justify-start items-start">
-            <div className="flex-1 h-12 relative bg-white border-t border-[#d9d9d9]">
+            <div className={`${totalLabelWidth} h-12 relative bg-white border-t border-[#d9d9d9]`}>
               <div className="left-[15px] top-[12px] absolute justify-start text-[#265ed6] text-base font-medium leading-6 tracking-tight">Total</div>
             </div>
-            {hasCash ? <div className="w-[70px] h-12 px-2 py-3 bg-white border-t border-[#d9d9d9]" /> : null}
+            {!isSupplierTable ? <div className="w-[70px] h-12 px-2 py-3 bg-white border-t border-[#d9d9d9]" /> : null}
             {hasCash ? (
-              <div className="w-24 px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
+              <div className="w-[110px] px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
                 <div className="text-right justify-start text-[#265ed6] text-base font-medium leading-6 tracking-tight">{formatMoney(totalAdvance)}</div>
               </div>
             ) : null}
-            {hasCash ? <div className="w-[70px] h-12 px-2 py-3 bg-white border-t border-[#d9d9d9]" /> : null}
-            <div className="w-[100px] px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
+            {!isSupplierTable && hasCash ? <div className="w-[70px] h-12 px-2 py-3 bg-white border-t border-[#d9d9d9]" /> : null}
+            <div className="w-[110px] px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
               <div className="text-right justify-start text-[#fd5c04] text-base font-medium leading-6 tracking-tight">{formatMoney(totalExpense)}</div>
             </div>
             {hasCash ? (
-              <div className="w-24 px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
-                <div className="text-right justify-start text-[#2a2a2a] text-base font-medium leading-6 tracking-tight">{totalBalance === 0 ? "-" : formatMoney(totalBalance)}</div>
+              <div className="w-[100px] px-2 py-3 bg-white border-t border-[#d9d9d9] flex justify-end items-center gap-2.5">
+                <div className="text-right justify-start text-[#1cb579] text-base font-medium leading-6 tracking-tight">{totalBalance === 0 ? "0.00" : formatMoney(totalBalance)}</div>
               </div>
             ) : null}
           </div>
@@ -828,7 +841,7 @@ function OtherExpenseSectionTable({ rows }: { rows: SectionTableRow[] }) {
   const totalBalance = rows.reduce((sum, row) => sum + Number(row.balance || 0), 0);
 
   return (
-    <div className="self-stretch p-6 bg-white inline-flex flex-col justify-center items-start gap-3">
+    <div className="self-stretch p-6 bg-white inline-flex flex-col justify-center items-start gap-3 w-full">
       <div className="self-stretch inline-flex justify-start items-center gap-2">
         <span className="text-[#265ed6] text-lg">📋</span>
         <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">Other Expense</div>
@@ -1123,11 +1136,11 @@ function ExpenseSectionTable({
   const totalExpense = rows.reduce((sum, row) => sum + Number(row.expense || 0), 0);
   const totalBalance = rows.reduce((sum, row) => sum + Number(row.balance || 0), 0);
   const isGuide = title === "Guide";
-  const isVehicle = title === "Vehicle Cost";
+  const isVehicle = ["Vehicle Cost", "Supplier Cost", "Own Vehicle Cost"].includes(title);
   const showCostType = !isVehicle;
   const showActPax = !isVehicle;
   const paymentWidthClass = isGuide ? "w-[82px]" : isVehicle ? "w-[120px]" : "w-[82px]";
-  const totalLabelColSpan = showOption ? 6 : isGuide ? 5 : isVehicle ? 3 : 4;
+  const totalLabelColSpan = showOption ? 6 : isVehicle ? 3 : 5;
 
   return (
     <div className="self-stretch p-6 bg-white flex flex-col justify-center items-start gap-3">
@@ -1145,7 +1158,7 @@ function ExpenseSectionTable({
           <thead>
             <tr className="bg-[#142b41]">
               <th className="w-16 p-2 text-left text-white text-base font-medium">#</th>
-              <th className="p-2 border-l border-white text-left text-white text-sm font-medium">{title === "Guide" ? "Guide Items" : title === "Vehicle Cost" ? "Vehicle" : "Items"}</th>
+              <th className="p-2 border-l border-white text-left text-white text-sm font-medium">{title === "Guide" ? "Guide Items" : isVehicle ? "Vehicle" : "Items"}</th>
               {showOption ? <th className="w-[120px] p-2 border-l border-white text-left text-white text-base font-medium">Option</th> : null}
               <th className={`${paymentWidthClass} p-2 border-l border-white text-left text-white text-base font-medium`}>Payment</th>
               {showCostType ? <th className="w-[120px] p-2 border-l border-white text-left text-white text-base font-medium">Cost Type</th> : null}
@@ -1187,7 +1200,6 @@ function ExpenseSectionTable({
           <tfoot>
             <tr className="bg-white">
               <td colSpan={totalLabelColSpan} className="p-2 text-[#265ed6] text-base font-medium">Total</td>
-              {showCostType ? <td className="p-2 border-l border-[#d9d9d9]" /> : null}
               {showAdvanceColumns ? <td className="p-2 border-l border-[#d9d9d9]" /> : null}
               {showAdvanceColumns ? <td className="p-2 border-l border-[#d9d9d9] text-right text-[#265ed6] text-base font-medium">{formatMoney(totalAdvance)}</td> : null}
               {showActPax ? <td className="p-2 border-l border-[#d9d9d9]" /> : null}
@@ -1499,6 +1511,25 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ tripCo
     };
   });
 
+  const allowanceSource = mode === "view" ? sections.allowance.filter(item => item.checked) : sections.allowance;
+  const allowanceRows: SectionTableRow[] = allowanceSource.map(item => {
+    const adv = advSections.allowance.find(advItem => advItem.id === item.id);
+    return {
+      id: item.id,
+      section: "allowance",
+      item: item.name,
+      payment: item.payment,
+      costType: item.costType,
+      costUnit: item.costUnit,
+      advPax: adv?.pax ?? null,
+      advCost: adv?.advCost ?? null,
+      actPax: item.actPax,
+      expense: item.actCost,
+      balance: adv ? item.actCost - adv.advCost : null,
+      checked: item.checked,
+    };
+  });
+
   const extraAdvanceRows: SectionTableRow[] = advanceModalExtraItems.map(item => ({
     id: item.id,
     section: "extra" as const,
@@ -1534,8 +1565,21 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ tripCo
   });
 
   const extraExpenseCheckedCount = sections.extra.filter(item => item.checked).length;
-
+  const supplierVehicleRows = vehicleRows.filter((row) => {
+    const item = sections.vehicle.find((vehicleItem) => vehicleItem.id === row.id);
+    return item?.supplier !== "-";
+  });
+  const ownVehicleRows = vehicleRows.filter((row) => {
+    const item = sections.vehicle.find((vehicleItem) => vehicleItem.id === row.id);
+    return item?.supplier === "-";
+  });
   const vehicleSupplier = sections.vehicle.find(item => item.supplier !== "-")?.supplier;
+  const hasVehicleSection = supplierVehicleRows.length > 0 || ownVehicleRows.length > 0;
+  const sectionCards = [
+    { key: "guide", title: "Guide", icon: "👥", rows: guideRows, supplier: undefined, showAdvanceColumns: undefined, showBalance: undefined },
+    { key: "other", title: "Other Expense", icon: "🏷", rows: otherRows, supplier: undefined, showAdvanceColumns: undefined, showBalance: undefined },
+    { key: "allowance", title: "Allowance", icon: "💸", rows: allowanceRows, supplier: undefined, showAdvanceColumns: undefined, showBalance: undefined },
+  ].filter(section => section.rows.length > 0);
 
   return (
     <div className="flex min-h-screen font-['IBM_Plex_Sans_Thai']">
@@ -1608,14 +1652,76 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ tripCo
                   </div>
                 </div>
               </div>
-              {mode === "view" ? <GuideSectionTable rows={guideRows} /> : <EditableExpenseSectionTable title="Guide" rows={guideRows} onToggle={toggleItem} onSetCostUnit={setCostUnit} onSetActPax={setActPax} onSetExpense={setExpense} />}
-              <div className="w-[calc(100%-48px)] h-px bg-[#d9d9d9]" />
-              {mode === "view" ? <VehicleSectionTable rows={vehicleRows} supplier={vehicleSupplier} /> : <EditableExpenseSectionTable title="Vehicle Cost" rows={vehicleRows} supplier={vehicleSupplier} onToggle={toggleItem} onSetCostUnit={setCostUnit} onSetActPax={setActPax} onSetExpense={setExpense} />}
-              <div className="w-[calc(100%-48px)] h-px bg-[#d9d9d9]" />
-              {mode === "view" ? <OtherExpenseSectionTable rows={otherRows} /> : <EditableExpenseSectionTable title="Other Expense" rows={otherRows} onToggle={toggleItem} onSetCostUnit={setCostUnit} onSetActPax={setActPax} onSetExpense={setExpense} />}
-              <div className="w-[calc(100%-48px)] h-px bg-[#d9d9d9]" />
-              {extraAdvanceRows.length > 0 ? <ExpenseSectionTable title="Extra Advance" icon="📎" rows={extraAdvanceRows} showAdvanceColumns showBalance /> : null}
-              {(extraAdvanceRows.length > 0 || (mode === "view" && extraExpenseCheckedCount > 0) || (mode === "edit" && sections.extra.length > 0)) ? <div className="w-[calc(100%-48px)] h-px bg-[#d9d9d9]" /> : null}
+              {sectionCards.filter((section) => section.key === "guide").map((section) => (
+                <div key={section.key} className="w-full">
+                  {mode === "view" ? <GuideSectionTable rows={section.rows} /> : (
+                    <EditableExpenseSectionTable
+                      title={section.title.includes("Vehicle") ? "Vehicle Cost" : section.title}
+                      rows={section.rows}
+                      supplier={section.supplier}
+                      onToggle={toggleItem}
+                      onSetCostUnit={setCostUnit}
+                      onSetActPax={setActPax}
+                      onSetExpense={setExpense}
+                    />
+                  )}
+                  {(hasVehicleSection || sectionCards.some((item) => item.key !== "guide") || (mode === "view" && extraExpenseCheckedCount > 0) || (mode === "edit" && sections.extra.length > 0) || extraAdvanceRows.length > 0)
+                    ? <div className="mx-6 h-px bg-[#d9d9d9]" /> : null}
+                </div>
+              ))}
+              {hasVehicleSection ? (
+                <div className="w-full">
+                  <div className="w-full p-6 bg-white flex flex-col gap-3">
+                    <div className="self-stretch inline-flex justify-start items-center gap-2">
+                      <span className="text-[#265ed6] text-lg">🚌</span>
+                      <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">Vehicle Cost</div>
+                    </div>
+                    {mode === "view" ? (
+                      <div className="w-full flex flex-col gap-3">
+                        {supplierVehicleRows.length > 0 ? <VehicleSectionTable rows={supplierVehicleRows} supplier={vehicleSupplier} title="Supplier Cost" /> : null}
+                        {ownVehicleRows.length > 0 ? <VehicleSectionTable rows={ownVehicleRows} title="Own Vehicle Cost" /> : null}
+                      </div>
+                    ) : (
+                      <div className="w-full flex flex-col gap-3">
+                        {supplierVehicleRows.length > 0 ? <EditableExpenseSectionTable title="Supplier Cost" rows={supplierVehicleRows} supplier={vehicleSupplier} onToggle={toggleItem} onSetCostUnit={setCostUnit} onSetActPax={setActPax} onSetExpense={setExpense} /> : null}
+                        {ownVehicleRows.length > 0 ? <EditableExpenseSectionTable title="Own Vehicle Cost" rows={ownVehicleRows} onToggle={toggleItem} onSetCostUnit={setCostUnit} onSetActPax={setActPax} onSetExpense={setExpense} /> : null}
+                      </div>
+                    )}
+                  </div>
+                  {sectionCards.some((section) => section.key !== "guide") || (mode === "view" && extraExpenseCheckedCount > 0) || (mode === "edit" && sections.extra.length > 0) || extraAdvanceRows.length > 0 ? <div className="mx-6 h-px bg-[#d9d9d9]" /> : null}
+                </div>
+              ) : null}
+              {sectionCards.filter((section) => section.key !== "guide").map((section, index, arr) => (
+                <div key={section.key} className="w-full">
+                  {mode === "view" ? (
+                    section.key === "other" ? (
+                      <OtherExpenseSectionTable rows={section.rows} />
+                    ) : (
+                      <ExpenseSectionTable
+                        title={section.title}
+                        icon={section.icon}
+                        rows={section.rows}
+                        supplier={section.supplier}
+                        showAdvanceColumns={section.showAdvanceColumns}
+                        showOption={section.title === "Other Expense"}
+                        showBalance={section.showBalance}
+                      />
+                    )
+                  ) : (
+                    <EditableExpenseSectionTable
+                      title={section.title.includes("Vehicle") ? "Vehicle Cost" : section.title}
+                      rows={section.rows}
+                      supplier={section.supplier}
+                      onToggle={toggleItem}
+                      onSetCostUnit={setCostUnit}
+                      onSetActPax={setActPax}
+                      onSetExpense={setExpense}
+                    />
+                  )}
+                  {(index < arr.length - 1 || (mode === "view" && extraExpenseCheckedCount > 0) || (mode === "edit" && sections.extra.length > 0) || extraAdvanceRows.length > 0)
+                    ? <div className="mx-6 h-px bg-[#d9d9d9]" /> : null}
+                </div>
+              ))}
               {mode === "view"
                 ? (extraExpenseCheckedCount > 0 ? <ExtraExpenseSectionTable rows={extraExpenseRows} /> : null)
                 : sections.extra.length > 0 ? (
@@ -1660,6 +1766,16 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ tripCo
                   )}
                 />
               )}
+              {extraAdvanceRows.length > 0 ? <div className="mx-6 h-px bg-[#d9d9d9]" /> : null}
+              {extraAdvanceRows.length > 0 ? (
+                <ExpenseSectionTable
+                  title="Extra Advance"
+                  icon="📎"
+                  rows={extraAdvanceRows}
+                  showAdvanceColumns
+                  showBalance
+                />
+              ) : null}
             </div>
 
             <div className="sticky top-4">

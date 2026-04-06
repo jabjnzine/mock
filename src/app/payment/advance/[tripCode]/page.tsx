@@ -841,7 +841,7 @@ function PendingSectionViewTable({
   sectionKey,
   items,
 }: {
-  sectionKey: "guide" | "vehicle" | "other";
+  sectionKey: SectionKey;
   items: AdvanceItem[];
 }) {
   const checked = items.filter((i) => i.checked);
@@ -856,7 +856,9 @@ function PendingSectionViewTable({
     ? "Items"
     : sectionKey === "guide"
       ? "Guide Items"
-      : "Vehicle";
+      : sectionKey === "vehicle"
+        ? "Vehicle"
+        : "Items";
 
   const rowNameOtherLike = (i: AdvanceItem | ExtraAdvanceItem) => {
     const { headline, remark } = splitAdvanceItemName(i.name);
@@ -1033,7 +1035,7 @@ function PendingSectionEditTable({
   onSetPax,
   onSetAdvCost,
 }: {
-  sectionKey: "guide" | "vehicle" | "other";
+  sectionKey: SectionKey;
   items: AdvanceSections[typeof sectionKey];
   onSetCostUnit: (id: string, val: string) => void;
   onSetPax: (id: string, val: string) => void;
@@ -1045,7 +1047,13 @@ function PendingSectionEditTable({
   const formatMoney0 = (v: number) => `${v.toLocaleString()}.00`;
   const getCostTypeLabel = (i: AdvanceItem | ExtraAdvanceItem) =>
     i.costType === "Fix" ? `Fix (0 - ${i.pax} Pax)` : i.costType;
-  const headerNameLabel = isOther ? "Items" : sectionKey === "guide" ? "Guide Items" : "Vehicle";
+  const headerNameLabel = isOther
+    ? "Items"
+    : sectionKey === "guide"
+      ? "Guide Items"
+      : sectionKey === "vehicle"
+        ? "Vehicle"
+        : "Items";
 
   if (checked.length === 0) {
     return <div className="px-5 py-6 text-center text-gray-400 text-sm">ไม่มีรายการ</div>;
@@ -1328,21 +1336,21 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
   const calcCostUnitFromAdvance = (costType: CostType, advCost: number, pax: number) =>
     costType === "Person" ? (pax > 0 ? advCost / pax : 0) : advCost;
 
-  const setCostUnit = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+  const setCostUnit = (sec: SectionKey, id: string, val: string) => {
     const n = parseMoney(val);
     setSections(p => ({
       ...p,
       [sec]: p[sec].map(i => (i.id === id ? { ...i, costUnit: n, advCost: calcAdvanceFromCostType(i.costType, n, i.pax) } : i)),
     }));
   };
-  const setPax = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+  const setPax = (sec: SectionKey, id: string, val: string) => {
     const n = Number(val || 0);
     setSections(p => ({
       ...p,
       [sec]: p[sec].map(i => (i.id === id ? { ...i, pax: n, advCost: calcAdvanceFromCostType(i.costType, i.costUnit, n) } : i)),
     }));
   };
-  const setAdvanceCost = (sec: "guide" | "vehicle" | "other", id: string, val: string) => {
+  const setAdvanceCost = (sec: SectionKey, id: string, val: string) => {
     const n = parseMoney(val);
     setSections(p => ({
       ...p,
@@ -1419,8 +1427,22 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
   const grandTotal  = totalAdv + totalExtra;
   const statusStyle = STATUS_STYLE[localStatus];
   const bankColor   = PAYMENT_BANK_COLOR[trip.bankName] ?? "#265ed6";
-  const extraAdvanceRows = [...sections.extra.filter(i => i.checked), ...extraItems.filter(i => i.checked)];
+  const extraCostRows = sections.extra.filter(i => i.checked);
+  const extraAdvanceRows = extraItems.filter(i => i.checked);
   const hasExtraAdvanceContent = extraAdvanceRows.length > 0;
+  const pendingLikeSectionCards = ([
+    { key: "guide", title: "Guide" },
+    { key: "other", title: "Other Expense" },
+    { key: "allowance", title: "Allowance" },
+    { key: "extra", title: "Extra Cost" },
+  ] as const).filter(({ key }) => sections[key].some((item) => item.checked));
+  const accordionSectionCards = ([
+    { key: "guide", title: SECTION_LABELS.guide },
+    { key: "other", title: SECTION_LABELS.other },
+    { key: "allowance", title: SECTION_LABELS.allowance },
+    { key: "extra", title: SECTION_LABELS.extra },
+  ] as const).filter(({ key }) => sections[key].some((item) => item.checked));
+  const hasVehicleSection = sections.vehicle.some((item) => item.checked);
   const topSummaryCards = [
     { label: "Pax No.ADV", value: trip.paxAdv, bg: "#dceeff", stroke: "#265ed6" },
     { label: "Checked In", value: trip.checkedIn, bg: "#e6f3e6", stroke: "#1cb579" },
@@ -1734,45 +1756,61 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
 
                     {/* Tables (อยู่ใต้ wrapper เดียวกัน) */}
                     <div data-property-1="View" data-property-2="True" data-property-3="Cash" className="self-stretch p-6 bg-white flex flex-col justify-center items-start gap-3">
-                      <div className="self-stretch inline-flex justify-start items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#265ed6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                          <circle cx="12" cy="7" r="4"/>
-                        </svg>
-                        <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                          Guide
+                      {pendingLikeSectionCards.filter((section) => section.key === "guide").map((section) => (
+                        <div key={section.key} className="self-stretch">
+                          <div className="self-stretch inline-flex justify-start items-center gap-2">
+                            <span className="text-[#265ed6] text-lg">{SEC[section.key].icon}</span>
+                            <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                              {section.title}
+                            </div>
+                          </div>
+                          <PendingSectionViewTable sectionKey={section.key} items={sections[section.key]} />
+                          {(hasVehicleSection || pendingLikeSectionCards.some((item) => item.key !== "guide")) ? <div className="mt-3 self-stretch h-px bg-[#d9d9d9]" /> : null}
                         </div>
-                      </div>
-                      <PendingSectionViewTable sectionKey="guide" items={sections.guide} />
-
-                      <div className="self-stretch inline-flex justify-start items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#265ed6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3v13h18V3"/>
-                          <path d="M7 16v4M17 16v4"/>
-                          <path d="M7 8h10"/>
-                        </svg>
-                        <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                          Vehicle Cost
+                      ))}
+                      {hasVehicleSection ? (
+                        <div className="self-stretch">
+                          <div className="self-stretch inline-flex justify-start items-center gap-2">
+                            <span className="text-[#265ed6] text-lg">{SEC.vehicle.icon}</span>
+                            <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                              Vehicle Cost
+                            </div>
+                          </div>
+                          <div className="mt-1 text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Own Vehicle Cost</div>
+                          <PendingSectionViewTable sectionKey="vehicle" items={sections.vehicle} />
+                          {pendingLikeSectionCards.some((section) => section.key !== "guide") ? <div className="mt-3 self-stretch h-px bg-[#d9d9d9]" /> : null}
                         </div>
-                      </div>
-                      <PendingSectionViewTable sectionKey="vehicle" items={sections.vehicle} />
-
-                      <div className="self-stretch inline-flex justify-start items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#265ed6" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 12V7a2 2 0 0 0-2-2h-6l-2 2H4a2 2 0 0 0-2 2v5"/>
-                          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>
-                        </svg>
-                        <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
-                          Other Expense
+                      ) : null}
+                      {pendingLikeSectionCards.filter((section) => section.key !== "guide").map((section, index, arr) => (
+                        <div key={section.key} className="self-stretch">
+                          <div className="self-stretch inline-flex justify-start items-center gap-2">
+                            <span className="text-[#265ed6] text-lg">{SEC[section.key].icon}</span>
+                            <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                              {section.title}
+                            </div>
+                          </div>
+                          <PendingSectionViewTable sectionKey={section.key} items={sections[section.key]} />
+                          {index < arr.length - 1 ? <div className="mt-3 self-stretch h-px bg-[#d9d9d9]" /> : null}
                         </div>
-                      </div>
-                      <PendingSectionViewTable sectionKey="other" items={sections.other} />
+                      ))}
                     </div>
 
                     {localStatus === "Completed" && (
                       <div className="self-stretch p-6 bg-white border-t border-[#E7E7E9] inline-flex flex-col justify-center items-start gap-6 font-['IBM_Plex_Sans_Thai'] rounded-bl-2xl rounded-br-2xl">
+                        {extraCostRows.length > 0 ? (
+                          <>
+                            <div className="self-stretch inline-flex justify-start items-center gap-2">
+                              <span className="text-[#265ed6] text-lg">{SEC.extra.icon}</span>
+                              <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">
+                                Extra Cost
+                              </div>
+                            </div>
+                            <SectionViewTable sectionKey="extra" items={sections.extra} />
+                          </>
+                        ) : null}
                         {hasExtraAdvanceContent ? (
                           <>
+                            {extraCostRows.length > 0 ? <div className="self-stretch h-px bg-[#E7E7E9]" /> : null}
                             <div className="self-stretch inline-flex justify-start items-center gap-2">
                               <ExtraAdvanceIconDocPlus />
                               <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">
@@ -1780,7 +1818,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                               </div>
                             </div>
                             <ExtraAdvanceTable
-                              seedExtra={sections.extra}
+                              seedExtra={[]}
                               modalExtra={extraItems}
                               variant="view"
                             />
@@ -1792,7 +1830,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                           data-property-2="True"
                           data-property-3="Cash"
                           className={`self-stretch bg-white flex flex-col justify-center items-start gap-3 ${
-                            hasExtraAdvanceContent ? "pt-6 border-t border-[#E7E7E9]" : ""
+                            hasExtraAdvanceContent || extraCostRows.length > 0 ? "pt-6 border-t border-[#E7E7E9]" : ""
                           }`}
                         >
                           <div className="self-stretch inline-flex justify-start items-center gap-2">
@@ -1823,7 +1861,61 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                   </div>
                 ) : (
                   <>
-                    {(["guide", "vehicle", "other"] as SectionKey[]).map(key => {
+                    {accordionSectionCards.filter(({ key }) => key === "guide").map(({ key, title }) => {
+                      const m = SEC[key];
+                      const isOpen = openSecs[key];
+                      const totalCount = sections[key].filter(i => i.checked).length;
+                      return (
+                        <div key={key} className="bg-white rounded-xl border border-[#E7E7E9] overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => toggleSec(key)}
+                            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-base">{m.icon}</span>
+                              <span className="font-semibold text-sm" style={{ color: m.color }}>{title}</span>
+                              <span className="text-xs text-gray-400">({totalCount} รายการ)</span>
+                            </div>
+                            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}
+                              className={`transition-transform ${isOpen ? "rotate-0" : "rotate-180"}`}>
+                              <path d="M18 15l-6-6-6 6"/>
+                            </svg>
+                          </button>
+                          {isOpen && <SectionViewTable sectionKey={key} items={sections[key]} />}
+                        </div>
+                      );
+                    })}
+                    {hasVehicleSection ? (
+                      <div className="bg-white rounded-xl border border-[#E7E7E9] overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => toggleSec("vehicle")}
+                          className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base">{SEC.vehicle.icon}</span>
+                            <span className="font-semibold text-sm" style={{ color: SEC.vehicle.color }}>
+                              Vehicle Cost
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              ({sections.vehicle.filter(i => i.checked).length} รายการ)
+                            </span>
+                          </div>
+                          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}
+                            className={`transition-transform ${openSecs.vehicle ? "rotate-0" : "rotate-180"}`}>
+                            <path d="M18 15l-6-6-6 6"/>
+                          </svg>
+                        </button>
+                        {openSecs.vehicle && (
+                          <div className="px-5 pt-2 pb-5">
+                            <div className="mb-2 text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Own Vehicle Cost</div>
+                            <SectionViewTable sectionKey="vehicle" items={sections.vehicle} />
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                    {accordionSectionCards.filter(({ key }) => key !== "guide").map(({ key, title }) => {
                       const m = SEC[key];
                       const isOpen = openSecs[key];
                       const totalCount = sections[key].filter(i => i.checked).length;
@@ -1837,7 +1929,7 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                             <div className="flex items-center gap-2.5">
                               <span className="text-base">{m.icon}</span>
                               <span className="font-semibold text-sm" style={{ color: m.color }}>
-                                {SECTION_LABELS[key]}
+                                {title}
                               </span>
                               <span className="text-xs text-gray-400">
                                 ({totalCount} รายการ)
@@ -1861,74 +1953,27 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                       );
                     })}
 
-                    {/* Extra Advance — ตารางแยก ต่อจาก Other Expense */}
-                    <div
-                      data-property-1="Edit"
-                      data-property-2="True"
-                      data-property-3="Cash"
-                      className="self-stretch p-6 bg-white rounded-xl border border-[#E7E7E9] inline-flex flex-col justify-center items-start gap-6 font-['IBM_Plex_Sans_Thai']"
-                    >
-                      <div className="self-stretch inline-flex justify-start items-center gap-2">
-                        <ExtraAdvanceIconDocPlus />
-                        <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">
-                          Extra Advance
+                    {hasExtraAdvanceContent ? (
+                      <div
+                        data-property-1="Edit"
+                        data-property-2="True"
+                        data-property-3="Cash"
+                        className="self-stretch p-6 bg-white rounded-xl border border-[#E7E7E9] inline-flex flex-col justify-center items-start gap-6 font-['IBM_Plex_Sans_Thai']"
+                      >
+                        <div className="self-stretch inline-flex justify-start items-center gap-2">
+                          <ExtraAdvanceIconDocPlus />
+                          <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold leading-7 tracking-tight">
+                            Extra Advance
+                          </div>
                         </div>
-                        <div className="flex justify-end items-center gap-4">
-                          <button
-                            type="button"
-                            onClick={openExtraModal}
-                            className="px-5 py-2 bg-[#fd5c04] rounded-[100px] flex justify-center items-center gap-2 hover:opacity-95"
-                          >
-                            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.8} aria-hidden>
-                              <circle cx="12" cy="12" r="9"/>
-                              <path d="M12 8v8M8 12h8"/>
-                            </svg>
-                            <span className="text-center text-white text-base font-medium leading-6 tracking-tight">
-                              Add extra advance
-                            </span>
-                          </button>
-                        </div>
+                        <ExtraAdvanceTable
+                          seedExtra={[]}
+                          modalExtra={extraItems}
+                          variant="view"
+                          onRemoveModal={removeExtraItem}
+                        />
                       </div>
-                      <ExtraAdvanceTable
-                        seedExtra={sections.extra}
-                        modalExtra={extraItems}
-                        variant="view"
-                        onRemoveModal={removeExtraItem}
-                        onRemoveSeed={removeSeedExtraItem}
-                      />
-                    </div>
-
-                    {(["allowance"] as SectionKey[]).map(key => {
-                      const m = SEC[key];
-                      const isOpen = openSecs[key];
-                      const totalCount = sections[key].filter(i => i.checked).length;
-                      return (
-                        <div key={key} className="bg-white rounded-xl border border-[#E7E7E9] overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => toggleSec(key)}
-                            className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-base">{m.icon}</span>
-                              <span className="font-semibold text-sm" style={{ color: m.color }}>
-                                {SECTION_LABELS[key]}
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                ({totalCount} รายการ)
-                              </span>
-                            </div>
-                            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2}
-                              className={`transition-transform ${isOpen ? "rotate-0" : "rotate-180"}`}>
-                              <path d="M18 15l-6-6-6 6"/>
-                            </svg>
-                          </button>
-                          {isOpen && (
-                            <SectionViewTable sectionKey={key} items={sections[key]} />
-                          )}
-                        </div>
-                      );
-                    })}
+                    ) : null}
                   </>
                 )
               ) : (
@@ -1946,38 +1991,55 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                     </div>
                   </div>
                   <div className="self-stretch p-6 bg-white flex flex-col justify-center items-start gap-3">
-                    <div className="self-stretch inline-flex justify-start items-center gap-2">
-                      <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Guide</div>
-                    </div>
-                    <PendingSectionEditTable
-                      sectionKey="guide"
-                      items={sections.guide}
-                      onSetCostUnit={(id, val) => setCostUnit("guide", id, val)}
-                      onSetPax={(id, val) => setPax("guide", id, val)}
-                      onSetAdvCost={(id, val) => setAdvanceCost("guide", id, val)}
-                    />
-
-                    <div className="self-stretch inline-flex justify-start items-center gap-2 mt-4">
-                      <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Vehicle Cost</div>
-                    </div>
-                    <PendingSectionEditTable
-                      sectionKey="vehicle"
-                      items={sections.vehicle}
-                      onSetCostUnit={(id, val) => setCostUnit("vehicle", id, val)}
-                      onSetPax={(id, val) => setPax("vehicle", id, val)}
-                      onSetAdvCost={(id, val) => setAdvanceCost("vehicle", id, val)}
-                    />
-
-                    <div className="self-stretch inline-flex justify-start items-center gap-2 mt-4">
-                      <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">Other Expense</div>
-                    </div>
-                    <PendingSectionEditTable
-                      sectionKey="other"
-                      items={sections.other}
-                      onSetCostUnit={(id, val) => setCostUnit("other", id, val)}
-                      onSetPax={(id, val) => setPax("other", id, val)}
-                      onSetAdvCost={(id, val) => setAdvanceCost("other", id, val)}
-                    />
+                    {pendingLikeSectionCards.filter((section) => section.key === "guide").map((section) => (
+                      <div key={section.key} className="self-stretch">
+                        <div className="self-stretch inline-flex justify-start items-center gap-2">
+                          <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                            {section.title}
+                          </div>
+                        </div>
+                        <PendingSectionEditTable
+                          sectionKey={section.key}
+                          items={sections[section.key]}
+                          onSetCostUnit={(id, val) => setCostUnit(section.key, id, val)}
+                          onSetPax={(id, val) => setPax(section.key, id, val)}
+                          onSetAdvCost={(id, val) => setAdvanceCost(section.key, id, val)}
+                        />
+                      </div>
+                    ))}
+                    {hasVehicleSection ? (
+                      <div className="self-stretch">
+                        <div className="self-stretch inline-flex justify-start items-center gap-2">
+                          <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                            Vehicle Cost
+                          </div>
+                        </div>
+                        <div className="mt-1 text-[#265ed6] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight">Own Vehicle Cost</div>
+                        <PendingSectionEditTable
+                          sectionKey="vehicle"
+                          items={sections.vehicle}
+                          onSetCostUnit={(id, val) => setCostUnit("vehicle", id, val)}
+                          onSetPax={(id, val) => setPax("vehicle", id, val)}
+                          onSetAdvCost={(id, val) => setAdvanceCost("vehicle", id, val)}
+                        />
+                      </div>
+                    ) : null}
+                    {pendingLikeSectionCards.filter((section) => section.key !== "guide").map((section, index) => (
+                      <div key={section.key} className="self-stretch">
+                        <div className={`self-stretch inline-flex justify-start items-center gap-2 ${index > 0 || hasVehicleSection || pendingLikeSectionCards.some((item) => item.key === "guide") ? "mt-4" : ""}`}>
+                          <div className="flex-1 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 tracking-tight">
+                            {section.title}
+                          </div>
+                        </div>
+                        <PendingSectionEditTable
+                          sectionKey={section.key}
+                          items={sections[section.key]}
+                          onSetCostUnit={(id, val) => setCostUnit(section.key, id, val)}
+                          onSetPax={(id, val) => setPax(section.key, id, val)}
+                          onSetAdvCost={(id, val) => setAdvanceCost(section.key, id, val)}
+                        />
+                      </div>
+                    ))}
 
                     <div
                       data-property-1="Edit"
@@ -2007,14 +2069,10 @@ export default function AdvanceDetailPage({ params }: { params: Promise<{ tripCo
                         </div>
                       </div>
                       <ExtraAdvanceTable
-                        seedExtra={sections.extra}
+                        seedExtra={[]}
                         modalExtra={extraItems}
                         variant="edit"
                         onRemoveModal={removeExtraItem}
-                        onRemoveSeed={removeSeedExtraItem}
-                        onEditSeedCostUnit={setSeedExtraCostUnit}
-                        onEditSeedPax={setSeedExtraPax}
-                        onEditSeedAdvCost={setSeedExtraAdvCost}
                         onEditModalCostUnit={setModalExtraCostUnit}
                         onEditModalPax={setModalExtraPax}
                         onEditModalAdvCost={setModalExtraAdvCost}
