@@ -610,11 +610,11 @@ export default function BookingDetails({
                     )}
                   </div>
                 </div>
-                {readonly && (
+                {readonly && noShowConditionDetail != null && (
                   <div className="self-stretch inline-flex justify-start items-start gap-2">
                     <ClipboardDocumentIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                     <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">
-                      No-show Condition
+                      No-show
                     </div>
                     <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
                       <NoShowConditionDisplay detail={noShowConditionDetail} tripCodeForSplitLink={bookingData.tripCode} />
@@ -700,11 +700,11 @@ export default function BookingDetails({
                     )}
                   </div>
                 </div>
-                {readonly && (
+                {readonly && noShowConditionDetail != null && (
                   <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap w-full">
                     <ClipboardDocumentIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                     <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">
-                      No-show Condition
+                      No-show
                     </div>
                     <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
                       <NoShowConditionDisplay

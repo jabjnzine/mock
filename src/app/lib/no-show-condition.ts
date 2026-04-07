@@ -22,18 +22,14 @@ export type NoShowConditionDetail =
       kind: "refund";
       condition: string;
       pax: number;
-      /** ข้อความจาก dropdown (เช่น Bad Weather, Other Reason) */
       reason: string;
-      /** กรอกเมื่อเลือก Other — แสดงใต้ Reason */
-      details?: string;
       refundAmount: number;
       remark: string;
     }
   /** ข้อความจากระบบเก่าที่ยังไม่ได้แปลงเป็นโครงสร้าง */
   | { kind: "legacyPlain"; text: string };
 
-/** ป้าย Reason ตามค่าที่เลือกใน modal (Other = แค่ Other Reason ข้อความอธิบายไปที่ `details`) */
-export function refundReasonKeyToLabel(key: string): string {
+export function refundReasonKeyToLabel(key: string, otherReason?: string): string {
   switch (key) {
     case "health_issue":
       return "Health Issue / Medical Condition";
@@ -43,8 +39,10 @@ export function refundReasonKeyToLabel(key: string): string {
       return "Personal Emergency";
     case "person_not_allowed":
       return "Person not allowed";
-    case "other_reason":
-      return "Other Reason";
+    case "other_reason": {
+      const detail = otherReason?.trim() ?? "";
+      return detail ? `Other (${detail})` : "Other (Details)";
+    }
     default:
       return key || "-";
   }
@@ -101,7 +99,7 @@ export function getNoShowConditionSummaryLabel(
     case "rescheduleFull":
       return "Reschedule";
     case "rescheduleSplitOriginal":
-      return "Reschedule (Split)";
+      return `Reschedule (Booking : ${detail.splitBookingNo})`;
     case "refund":
       return "Refund";
     case "legacyPlain":

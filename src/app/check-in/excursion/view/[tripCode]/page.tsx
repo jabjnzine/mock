@@ -460,10 +460,9 @@ export default function CheckInViewPage() {
           kind: "refund",
           condition: "Refund",
           pax: 5,
-          reason: "Other Reason",
-          details: "หยก",
+          reason: "Bad Weather",
           refundAmount: 7500,
-          remark: "หฟก",
+          remark: "Approved by supervisor",
         },
       },
       { id: "5", bookingNo: bookingNo("0840"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 5", phone: "081-1001005", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
@@ -750,21 +749,12 @@ export default function CheckInViewPage() {
         const orig = booking.pax;
         const newStatus = n === orig ? ("noShow" as const) : ("checkedIn" as const);
         const checkIn = orig - n;
-        const reasonKey = String(p.reason ?? "");
-        const reasonLabel = refundReasonKeyToLabel(reasonKey);
+        const reasonLabel = refundReasonKeyToLabel(String(p.reason ?? ""), p.otherReason);
         const refundDetail: NoShowConditionDetail = {
           kind: "refund",
           condition: "Refund",
           pax: n,
           reason: reasonLabel,
-          ...(reasonKey === "other_reason"
-            ? {
-                details:
-                  typeof p.otherReason === "string" && p.otherReason.trim()
-                    ? p.otherReason.trim()
-                    : "-",
-              }
-            : {}),
           refundAmount: Number(p.amount ?? 0),
           remark: String(p.remarks ?? "").trim() || "-",
         };

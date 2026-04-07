@@ -85,28 +85,20 @@ export default function NoShowConditionDisplay({
       tripCodeForSplitLink && detail.splitBookingNo
         ? `${base}/${encodeURIComponent(tripCodeForSplitLink)}?openBooking=${encodeURIComponent(detail.splitBookingNo)}`
         : null;
+    const bookingLink = href ? (
+      <Link href={href} className="text-[#265ed6] underline font-medium text-sm sm:text-base">
+        {detail.splitBookingNo}
+      </Link>
+    ) : (
+      <span className="text-[#265ed6] underline">{detail.splitBookingNo}</span>
+    );
     return (
       <div className={compact ? "flex flex-col gap-0.5" : "flex flex-col gap-3 w-full"}>
-        <div className={compact ? "self-stretch inline-flex justify-start items-start gap-1 mt-1" : "self-stretch inline-flex justify-start items-start gap-2 flex-wrap"}>
-          <div
-            className={
-              compact
-                ? "text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] shrink-0"
-                : "text-[#2a2a2a] text-base font-medium font-['IBM_Plex_Sans_Thai'] leading-6 tracking-tight shrink-0"
-            }
-          >
-            Condition :
-          </div>
-          <div className="min-w-0">
-            {href ? (
-              <Link href={href} className="text-[#265ed6] underline font-medium text-sm sm:text-base">
-                {detail.splitBookingNo}
-              </Link>
-            ) : (
-              <span className="text-[#265ed6] underline">{detail.splitBookingNo}</span>
-            )}
-          </div>
-        </div>
+        <Row compact={compact} label="Condition :">
+          <>
+            Reschedule (Booking : {bookingLink})
+          </>
+        </Row>
         <Row compact={compact} label="Pax (Split) :">{detail.splitPax}</Row>
         <Row compact={compact} label="Additional :">{detail.additional || "-"}</Row>
         <Row compact={compact} label="Remark :">{detail.remark || "-"}</Row>
@@ -120,9 +112,6 @@ export default function NoShowConditionDisplay({
         <Row compact={compact} label="Condition :">{detail.condition}</Row>
         <Row compact={compact} label="Pax :">{detail.pax}</Row>
         <Row compact={compact} label="Reason :">{detail.reason || "-"}</Row>
-        {detail.details !== undefined && (
-          <Row compact={compact} label="Details :">{detail.details || "-"}</Row>
-        )}
         <Row compact={compact} label="Refund Amount :">
           ฿ {detail.refundAmount.toLocaleString()}
         </Row>
