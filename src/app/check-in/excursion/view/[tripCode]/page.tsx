@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { useParams, useRouter, usePathname } from "next/navigation";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useParams, useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Input, Button } from "@heroui/react";
 import {
   XMarkIcon,
@@ -36,6 +36,12 @@ import NoShowModal from "../../../../components/NoShowModal";
 import CheckInModal from "../../../../components/CheckInModal";
 import BookingDetails from "../../../../components/BookingDetails";
 import { getTripDetail, type TripPerson } from "@/app/lib/check-in-trip";
+import {
+  type NoShowConditionDetail,
+  getNoShowConditionSummaryLabel,
+  resolveNoShowConditionDetail,
+  refundReasonKeyToLabel,
+} from "@/app/lib/no-show-condition";
 
 // ─── Summary Card Icons (ตรงกับ Check In List — SVG จาก Figma) ─────────────────
 const IconWaiting = () => (
@@ -148,6 +154,7 @@ interface Booking {
   checkedInTime?: string;
   remark?: string;
   noShowCondition?: string;
+  noShowConditionDetail?: NoShowConditionDetail;
 }
 
 export default function CheckInViewPage() {
@@ -155,6 +162,7 @@ export default function CheckInViewPage() {
   const router = useRouter();
   const tripCode = params.tripCode as string;
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isTransportFlow = pathname.includes("/check-in/transport/");
   const flowLabel = isTransportFlow ? "Transport" : "Excursion";
 
@@ -193,12 +201,18 @@ export default function CheckInViewPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerBookingId, setDrawerBookingId] = useState<string | null>(null);
 
-  const openBookingDrawer = (code: string) => {
-    setDrawerBookingId(code);
+  const openBookingDrawer = useCallback((bookingNo: string) => {
+    setDrawerBookingId(bookingNo);
     setShowBookingDrawer(true);
-    // ให้ animation เริ่มหลังจาก mount แล้ว
     setTimeout(() => setDrawerOpen(true), 0);
-  };
+  }, []);
+
+  useEffect(() => {
+    const q = searchParams.get("openBooking")?.trim();
+    if (!q) return;
+    openBookingDrawer(q);
+    router.replace(pathname);
+  }, [searchParams, pathname, router, openBookingDrawer]);
 
   const closeBookingDrawer = () => {
     setDrawerOpen(false);
@@ -358,8 +372,43 @@ export default function CheckInViewPage() {
       { id: "1", bookingNo: bookingNo("0730"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Yerik Trevor Tavarez", phone: "065-9016894", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
       { id: "2", bookingNo: bookingNo("0745"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Leanne Tague", phone: "+447708157027", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
       { id: "3", bookingNo: bookingNo("0800"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "John Doe", phone: "065-9016895", pax: 1, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
-      { id: "4", bookingNo: bookingNo("0815"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Jane Smith", phone: "065-9016896", pax: 8, checkIn: 7, noShow: 1, language: "EN", status: "waitingReason", remark: "-" },
-      { id: "5", bookingNo: bookingNo("0830"), program: programByCode("EC25Z1PW"), option: "Day Trip with Shared Transfer including National Park Fee", customerName: "Joyce De Vos", phone: "+32472602889", pax: 7, checkIn: 0, noShow: 7, language: "EN", status: "noShow", remark: "-", noShowCondition: "No-show Full Charge" },
+      {
+        id: "4",
+        bookingNo: bookingNo("0815"),
+        program: programByCode("EC25Z1PW"),
+        option: "Day Trip with Shared Transfer including National Park Fee",
+        customerName: "Jane Smith",
+        phone: "065-9016896",
+        pax: 8,
+        checkIn: 7,
+        noShow: 1,
+        language: "EN",
+        status: "waitingReason",
+        remark: "-",
+        noShowConditionDetail: {
+          kind: "rescheduleSplitOriginal",
+          splitBookingNo: "TSB12250915",
+          splitPax: 1,
+          additional: "฿ 300",
+          remark: "Guest requested different round",
+        },
+      },
+      {
+        id: "5",
+        bookingNo: bookingNo("0830"),
+        program: programByCode("EC25Z1PW"),
+        option: "Day Trip with Shared Transfer including National Park Fee",
+        customerName: "Joyce De Vos",
+        phone: "+32472602889",
+        pax: 7,
+        checkIn: 0,
+        noShow: 7,
+        language: "EN",
+        status: "noShow",
+        remark: "-",
+        noShowCondition: "No-show Full Charge",
+        noShowConditionDetail: { kind: "fullCharge" },
+      },
     ],
     EC2581C4: [
       { id: "1", bookingNo: bookingNo("0710"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group A1", phone: "081-1111111", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:15", remark: "-" },
@@ -368,13 +417,55 @@ export default function CheckInViewPage() {
       { id: "4", bookingNo: bookingNo("0755"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B1", phone: "082-2222222", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
       { id: "5", bookingNo: bookingNo("0810"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B2", phone: "082-2222223", pax: 8, checkIn: 8, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
       { id: "6", bookingNo: bookingNo("0825"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Group B3", phone: "082-2222224", pax: 2, checkIn: 2, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
-      { id: "7", bookingNo: bookingNo("0840"), program: programByCode("EC2581C4"), option: "Day Trip", customerName: "Single Guest", phone: "083-3333333", pax: 1, checkIn: 0, noShow: 1, language: "EN", status: "waitingReason", remark: "-" },
+      {
+        id: "7",
+        bookingNo: bookingNo("0840"),
+        program: programByCode("EC2581C4"),
+        option: "Day Trip",
+        customerName: "Single Guest",
+        phone: "083-3333333",
+        pax: 1,
+        checkIn: 0,
+        noShow: 1,
+        language: "EN",
+        status: "waitingReason",
+        remark: "-",
+        noShowConditionDetail: {
+          kind: "rescheduleFull",
+          originalDate: "17/12/2025 : 07 : 45",
+          additional: "฿ 0",
+          remark: "Joined afternoon departure",
+        },
+      },
     ],
     EC25DM35: [
       { id: "1", bookingNo: bookingNo("0800"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 1", phone: "081-1001001", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:55", remark: "-" },
       { id: "2", bookingNo: bookingNo("0810"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 2", phone: "081-1001002", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:00", remark: "-" },
       { id: "3", bookingNo: bookingNo("0820"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 3", phone: "081-1001003", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:05", remark: "-" },
-      { id: "4", bookingNo: bookingNo("0830"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 4", phone: "081-1001004", pax: 5, checkIn: 0, noShow: 5, language: "EN", status: "noShow", remark: "-", noShowCondition: "No-show Full Charge" },
+      {
+        id: "4",
+        bookingNo: bookingNo("0830"),
+        program: programByCode("EC25DM35"),
+        option: "Day Trip",
+        customerName: "Damnoen Guest 4",
+        phone: "081-1001004",
+        pax: 5,
+        checkIn: 0,
+        noShow: 5,
+        language: "EN",
+        status: "noShow",
+        remark: "-",
+        noShowCondition: "Refund",
+        noShowConditionDetail: {
+          kind: "refund",
+          condition: "Refund",
+          pax: 5,
+          reason: "Other Reason",
+          details: "หยก",
+          refundAmount: 7500,
+          remark: "หฟก",
+        },
+      },
       { id: "5", bookingNo: bookingNo("0840"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 5", phone: "081-1001005", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
       { id: "6", bookingNo: bookingNo("0850"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 6", phone: "081-1001006", pax: 4, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
       { id: "7", bookingNo: bookingNo("0900"), program: programByCode("EC25DM35"), option: "Day Trip", customerName: "Damnoen Guest 7", phone: "081-1001007", pax: 4, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
@@ -396,11 +487,46 @@ export default function CheckInViewPage() {
     ],
     EC25PV02: [
       { id: "1", bookingNo: bookingNo("0825"), program: programByCode("EC25PV02"), option: "Private Full Day Tour", customerName: "Mr. Smith Group", phone: "081-9876543", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "08:25", remark: "-" },
-      { id: "2", bookingNo: bookingNo("0830"), program: programByCode("EC25PV02"), option: "Private Full Day Tour", customerName: "Ms. Johnson", phone: "082-1122334", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      {
+        id: "2",
+        bookingNo: bookingNo("0830"),
+        program: programByCode("EC25PV02"),
+        option: "Private Full Day Tour",
+        customerName: "Ms. Johnson",
+        phone: "082-1122334",
+        pax: 3,
+        checkIn: 0,
+        noShow: 3,
+        language: "EN",
+        status: "noShow",
+        remark: "-",
+        noShowCondition: "No-show Full Charge",
+        noShowConditionDetail: { kind: "fullCharge" },
+      },
     ],
     TF25Z1PW: [
       { id: "1", bookingNo: "TSB12250730", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Transport Guest", phone: "089-1112233", pax: 2, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
-      { id: "2", bookingNo: "TSB12250745", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Another Guest", phone: "081-2223344", pax: 3, checkIn: 0, noShow: 0, language: "EN", status: "waiting", remark: "-" },
+      {
+        id: "2",
+        bookingNo: "TSB12250745",
+        program: programByCode("TF25Z1PW"),
+        option: "Shared Transfer",
+        customerName: "Another Guest",
+        phone: "081-2223344",
+        pax: 3,
+        checkIn: 2,
+        noShow: 1,
+        language: "EN",
+        status: "waitingReason",
+        remark: "-",
+        noShowConditionDetail: {
+          kind: "rescheduleSplitOriginal",
+          splitBookingNo: "TSB-SPLIT-25L2KQ",
+          splitPax: 1,
+          additional: "฿ 0",
+          remark: "Test",
+        },
+      },
       { id: "3", bookingNo: "TSB12250760", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Alpha", phone: "082-3001001", pax: 5, checkIn: 5, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:20", remark: "-" },
       { id: "4", bookingNo: "TSB12250775", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Bravo", phone: "082-3001002", pax: 4, checkIn: 4, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:22", remark: "-" },
       { id: "5", bookingNo: "TSB12250790", program: programByCode("TF25Z1PW"), option: "Shared Transfer", customerName: "Group Charlie", phone: "082-3001003", pax: 3, checkIn: 3, noShow: 0, language: "EN", status: "checkedIn", checkedInTime: "07:24", remark: "-" },
@@ -516,6 +642,7 @@ export default function CheckInViewPage() {
       const { bookingId, noShowPax, originalPax } = noShowPending;
       const newStatus = noShowPax === originalPax ? ("noShow" as const) : ("checkedIn" as const);
       const checkIn = originalPax - noShowPax;
+      const noShowConditionDetail: NoShowConditionDetail = { kind: "fullCharge" };
       setBookingStates((prev) =>
         prev.map((b) =>
           b.id === bookingId
@@ -524,6 +651,7 @@ export default function CheckInViewPage() {
                 noShow: noShowPax,
                 checkIn,
                 status: newStatus,
+                noShowConditionDetail,
                 noShowCondition: "No-show Full Charge",
                 ...(newStatus === "checkedIn"
                   ? {
@@ -547,14 +675,24 @@ export default function CheckInViewPage() {
       const wrap = payload && typeof payload === "object" ? (payload as { rescheduleData?: unknown }) : {};
       const data =
         wrap.rescheduleData && typeof wrap.rescheduleData === "object"
-          ? (wrap.rescheduleData as { travelDate?: string; tripRound?: string; noShowPax?: number })
+          ? (wrap.rescheduleData as {
+              travelDate?: string;
+              tripRound?: string;
+              noShowPax?: number;
+              additionalFee?: number;
+              reason?: string;
+              suggestion?: string;
+            })
           : {};
       const booking = bookingStates.find((b) => b.id === bookingId);
       if (booking) {
         const origPax = booking.pax;
         const noShowPax = Number(data.noShowPax ?? 0);
-        const travelDate = data.travelDate ?? tripData.travelDate;
-        const tripRound = data.tripRound ?? tripData.tripRound;
+        const additionalNum = Number(data.additionalFee ?? 0);
+        const additionalLabel = Number.isFinite(additionalNum) ? `฿ ${additionalNum.toLocaleString()}` : "-";
+        const remarkLabel = data.reason?.trim() ? data.reason : "-";
+        const suggestion = String(data.suggestion ?? "").trim();
+        const splitBookingNo = suggestion ? `TSB-SPLIT-${suggestion}` : `${booking.bookingNo}-SPLIT`;
 
         if (noShowPax >= origPax) {
           // กรณี Reschedule เต็มจำนวน: ย้าย Booking ไปทริปใหม่ (ไม่ต้องแสดงในหน้านี้)
@@ -562,10 +700,15 @@ export default function CheckInViewPage() {
             prev.map((b) => (b.id === bookingId ? { ...b, status: "rescheduled" as const } : b))
           );
         } else {
-          // กรณี Reschedule บางส่วน: ให้ Booking แสดงอยู่เดิมเป็นสถานะ Check-in
-          // (มีทั้งคนมาและคน Reschedule) พร้อมบันทึกเงื่อนไข No-show เป็นรายละเอียด Reschedule
+          // กรณี Reschedule บางส่วน (Split): แสดงรายละเอียดบน Original Booking
           const checkIn = origPax - noShowPax;
-          const conditionText = `Reschedule to ${travelDate} : ${tripRound.replace(":", " : ")}`;
+          const splitDetail: NoShowConditionDetail = {
+            kind: "rescheduleSplitOriginal",
+            splitBookingNo,
+            splitPax: noShowPax,
+            additional: additionalLabel,
+            remark: remarkLabel,
+          };
           setBookingStates((prev) =>
             prev.map((b) =>
               b.id === bookingId
@@ -574,7 +717,8 @@ export default function CheckInViewPage() {
                     noShow: noShowPax,
                     checkIn,
                     status: "checkedIn" as const,
-                    noShowCondition: conditionText,
+                    noShowConditionDetail: splitDetail,
+                    noShowCondition: `Split → ${splitBookingNo}`,
                   }
                 : b
             )
@@ -590,13 +734,40 @@ export default function CheckInViewPage() {
       pendingBulkCheckInIdsRef.current = null;
     } else if (pendingRefundRef.current) {
       const { bookingId, payload } = pendingRefundRef.current;
-      const p = payload && typeof payload === "object" ? (payload as { noShowPax?: number }) : {};
+      const p =
+        payload && typeof payload === "object"
+          ? (payload as {
+              noShowPax?: number;
+              reason?: string;
+              otherReason?: string;
+              remarks?: string;
+              amount?: number;
+            })
+          : {};
       const n = Number(p.noShowPax ?? 0);
       const booking = bookingStates.find((b) => b.id === bookingId);
       if (booking) {
         const orig = booking.pax;
         const newStatus = n === orig ? ("noShow" as const) : ("checkedIn" as const);
         const checkIn = orig - n;
+        const reasonKey = String(p.reason ?? "");
+        const reasonLabel = refundReasonKeyToLabel(reasonKey);
+        const refundDetail: NoShowConditionDetail = {
+          kind: "refund",
+          condition: "Refund",
+          pax: n,
+          reason: reasonLabel,
+          ...(reasonKey === "other_reason"
+            ? {
+                details:
+                  typeof p.otherReason === "string" && p.otherReason.trim()
+                    ? p.otherReason.trim()
+                    : "-",
+              }
+            : {}),
+          refundAmount: Number(p.amount ?? 0),
+          remark: String(p.remarks ?? "").trim() || "-",
+        };
         setBookingStates((prev) =>
           prev.map((b) =>
             b.id === bookingId
@@ -605,6 +776,7 @@ export default function CheckInViewPage() {
                   noShow: n,
                   checkIn,
                   status: newStatus,
+                  noShowConditionDetail: refundDetail,
                   noShowCondition: "Refund",
                 }
               : b
@@ -1312,14 +1484,15 @@ export default function CheckInViewPage() {
                               </>
                             )}
                           </div>
-                          {/* No-show Condition Row - แสดงเมื่อ booking นี้มี No Show */}
                           {booking.noShow > 0 && (
-                            <div className="self-stretch inline-flex justify-start items-start gap-1 mt-2">
-                              <div className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px]">
-                                No-show Condition :
-                              </div>
-                              <div className="text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em]">
-                                {booking.noShowCondition || "-"}
+                            <div className="self-stretch flex flex-wrap items-center justify-between gap-2 mt-2">
+                              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+                                <span className="text-[#848484] text-xs font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] shrink-0">
+                                  No-show Condition :
+                                </span>
+                                <span className="text-[#2A2A2A] text-sm font-normal font-['IBM_Plex_Sans_Thai'] leading-[18px] tracking-[0.01em] min-w-0">
+                                  {getNoShowConditionSummaryLabel(resolveNoShowConditionDetail(booking))}
+                                </span>
                               </div>
                             </div>
                           )}
@@ -1778,6 +1951,9 @@ export default function CheckInViewPage() {
                   tripDetailsVariant={isTransportFlow ? "transport" : "excursion"}
                   readonly
                   initialTripType={tripData.tripType}
+                  noShowConditionDetail={resolveNoShowConditionDetail(
+                    bookingStates.find((x) => x.bookingNo === drawerBookingId) ?? {}
+                  )}
                   initialBookingSnapshot={(() => {
                     const b = bookingStates.find((x) => x.bookingNo === drawerBookingId);
                     if (!b) return undefined;

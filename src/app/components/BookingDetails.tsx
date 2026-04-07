@@ -25,6 +25,8 @@ import NoShowModal from "./NoShowModal";
 import WarningModal from "./WarningModal";
 import LoadingModal from "./LoadingModal";
 import SuccessModal from "./SuccessModal";
+import NoShowConditionDisplay from "./NoShowConditionDisplay";
+import type { NoShowConditionDetail } from "@/app/lib/no-show-condition";
 
 interface BookingDetailsProps {
   bookingId: string;
@@ -38,6 +40,8 @@ interface BookingDetailsProps {
   initialTripType?: string;
   /** ข้อมูลจาก Trip/Booking เมื่อเปิด View จากหน้า View Trip Code ให้แสดง Program, Option ฯลฯ ตรงกับ Trip */
   initialBookingSnapshot?: Partial<BookingData>;
+  /** แสดงใต้ Guide Detail ใน Trip Details (Excursion) เมื่อเปิด View Booking */
+  noShowConditionDetail?: NoShowConditionDetail | null;
 }
 
 interface BookingData {
@@ -195,6 +199,7 @@ export default function BookingDetails({
   readonly = false,
   initialTripType,
   initialBookingSnapshot,
+  noShowConditionDetail,
 }: BookingDetailsProps) {
   const [expandedSections, setExpandedSections] = useState({
     bookingDetails: true,
@@ -605,6 +610,17 @@ export default function BookingDetails({
                     )}
                   </div>
                 </div>
+                {readonly && (
+                  <div className="self-stretch inline-flex justify-start items-start gap-2">
+                    <ClipboardDocumentIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                    <div className="w-40 justify-start text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7 shrink-0">
+                      No-show Condition
+                    </div>
+                    <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
+                      <NoShowConditionDisplay detail={noShowConditionDetail} tripCodeForSplitLink={bookingData.tripCode} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -615,10 +631,10 @@ export default function BookingDetails({
               <div className="w-1 h-6 bg-[#265ed6] rounded-[100px]" />
               <div className="justify-start text-[#2a2a2a] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Transport details</div>
             </div>
-            <div className="self-stretch inline-flex justify-start items-start gap-6 flex-wrap">
+            <div className="self-stretch flex flex-wrap justify-start items-stretch gap-6">
               {/* Pick - Up */}
-            <div className="flex-1 min-w-[280px] rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-center items-start overflow-hidden">
-              <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
+            <div className="flex min-h-0 flex-1 min-w-[280px] flex-col self-stretch rounded-2xl border border-[#d9d9d9] overflow-hidden">
+              <div className="shrink-0 self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
                 <div className="flex-1 flex justify-start items-center gap-2 min-w-0">
                   <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center shrink-0">
                     <MapPinIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
@@ -637,7 +653,7 @@ export default function BookingDetails({
                   </div>
                 </div>
               </div>
-              <div className="self-stretch p-6 flex flex-col justify-center items-start gap-6">
+              <div className="flex min-h-0 flex-1 flex-col justify-start items-start gap-6 self-stretch p-6">
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
@@ -684,11 +700,26 @@ export default function BookingDetails({
                     )}
                   </div>
                 </div>
+                {readonly && (
+                  <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap w-full">
+                    <ClipboardDocumentIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
+                    <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">
+                      No-show Condition
+                    </div>
+                    <div className="inline-flex flex-col justify-center items-start gap-2 flex-1 min-w-0">
+                      <NoShowConditionDisplay
+                        detail={noShowConditionDetail}
+                        tripCodeForSplitLink={bookingData.tripCode}
+                        viewBasePath="/check-in/transport/view"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {/* Drop - off */}
-            <div className="flex-1 min-w-[280px] rounded-2xl border border-[#d9d9d9] inline-flex flex-col justify-center items-start overflow-hidden">
-              <div className="self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
+            <div className="flex min-h-0 flex-1 min-w-[280px] flex-col self-stretch rounded-2xl border border-[#d9d9d9] overflow-hidden">
+              <div className="shrink-0 self-stretch p-6 bg-[#f8f8f8] rounded-tl-2xl rounded-tr-2xl inline-flex justify-start items-start gap-6 flex-wrap">
                 <div className="flex-1 flex justify-start items-center gap-2 min-w-0">
                   <div className="p-2 bg-[#dceeff] rounded-2xl flex justify-center items-center shrink-0">
                     <MapPinIcon className="w-4 h-4 text-[#265ed6]" strokeWidth={1.5} />
@@ -707,7 +738,7 @@ export default function BookingDetails({
                   </div>
                 </div>
               </div>
-              <div className="self-stretch p-6 flex flex-col justify-center items-start gap-6">
+              <div className="flex min-h-0 flex-1 flex-col justify-start items-start gap-6 self-stretch p-6">
                 <div className="self-stretch inline-flex justify-start items-start gap-2 flex-wrap">
                   <TruckIcon className="w-6 h-6 text-[#265ed6] shrink-0" strokeWidth={1.5} />
                   <div className="w-40 shrink-0 text-[#265ed6] text-lg font-semibold font-['IBM_Plex_Sans_Thai'] leading-7">Vehicle Detail</div>
