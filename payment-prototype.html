@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Hub — Tour System Prototype</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6fa; display: flex; height: 100vh; overflow: hidden; font-size: 14px; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 220px; min-width: 220px; background: #1a2332; color: #cdd5e0;
+    display: flex; flex-direction: column; overflow-y: auto; z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 16px; display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #2a3547;
+  }
+  .logo-box {
+    background: #e85d26; color: white; font-weight: 900; font-size: 11px;
+    padding: 6px 8px; border-radius: 6px; line-height: 1.2; text-align: center;
+  }
+  .sidebar-section-label {
+    font-size: 10px; font-weight: 700; color: #5a7090; text-transform: uppercase;
+    letter-spacing: 1px; padding: 16px 16px 6px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    cursor: pointer; color: #8a9bb5; font-size: 13px; transition: all 0.15s;
+    border-left: 3px solid transparent; position: relative;
+  }
+  .sidebar-item:hover { background: #243045; color: #cdd5e0; }
+  .sidebar-item.active { background: #1e3a5f; color: #4da6ff; border-left-color: #4da6ff; }
+  .sidebar-item .icon { width: 16px; text-align: center; flex-shrink: 0; }
+  .sidebar-item .chevron { margin-left: auto; font-size: 10px; color: #445566; }
+  .sidebar-item.payment-item { color: #ffd166; }
+  .sidebar-item.payment-item.active { background: #1e3a30; color: #00d97e; border-left-color: #00d97e; }
+  .sidebar-badge {
+    margin-left: auto; background: #e85d26; color: white;
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+  }
+  .sidebar-sub { padding-left: 42px; font-size: 12px; color: #667788; padding-top: 2px; padding-bottom: 2px; }
+  .sidebar-sub:hover { color: #99aacc; }
+
+  /* ─── MAIN CONTENT ─── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    background: white; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 56px; flex-shrink: 0;
+  }
+  .topbar-title { font-size: 16px; font-weight: 700; color: #1a2332; display: flex; align-items: center; gap: 8px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; color: #667; font-size: 13px; }
+  .avatar { width: 32px; height: 32px; background: #4da6ff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 13px; }
+  .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ─── VIEWS ─── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ─── PAGE HEADER ─── */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 20px; font-weight: 700; color: #1a2332; }
+  .page-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+  /* ─── FILTER BAR ─── */
+  .filter-bar {
+    background: white; border-radius: 10px; padding: 14px 16px;
+    display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
+    border: 1px solid #e2e8f0; flex-wrap: wrap;
+  }
+  .filter-bar input, .filter-bar select {
+    border: 1px solid #d1d9e6; border-radius: 6px; padding: 6px 10px;
+    font-size: 13px; color: #333; outline: none; background: #f8fafc;
+  }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: #4da6ff; }
+  .filter-label { font-size: 12px; color: #888; white-space: nowrap; }
+  .btn {
+    padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: #4da6ff; color: white; }
+  .btn-primary:hover { background: #2d8fe0; }
+  .btn-success { background: #00d97e; color: white; }
+  .btn-success:hover { background: #00b56a; }
+  .btn-warning { background: #ffd166; color: #333; }
+  .btn-warning:hover { background: #f5c040; }
+  .btn-danger { background: #ff6b6b; color: white; }
+  .btn-danger:hover { background: #e55; }
+  .btn-ghost { background: transparent; color: #4da6ff; border: 1px solid #4da6ff; }
+  .btn-ghost:hover { background: #e8f4ff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ─── STAT CARDS ─── */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-card {
+    background: white; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: #1a2332; }
+  .stat-sub { font-size: 11px; color: #aaa; }
+  .stat-card.green .stat-value { color: #00d97e; }
+  .stat-card.red .stat-value { color: #ff6b6b; }
+  .stat-card.blue .stat-value { color: #4da6ff; }
+  .stat-card.orange .stat-value { color: #ffd166; }
+
+  /* ─── TABLE ─── */
+  .table-wrap { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; }
+  .table-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+  .table-head-title { font-weight: 700; color: #333; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: #f8fafc; text-align: left; padding: 10px 16px;
+    font-size: 11px; font-weight: 700; color: #667; text-transform: uppercase;
+    letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0;
+  }
+  tbody tr { border-bottom: 1px solid #f0f4f8; transition: background 0.1s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f0f7ff; }
+  tbody td { padding: 12px 16px; font-size: 13px; color: #334; vertical-align: middle; }
+  .trip-id { font-weight: 700; color: #4da6ff; font-family: monospace; font-size: 12px; }
+  .program-name { font-weight: 600; color: #1a2332; }
+  .seller-tag { font-size: 11px; background: #eef2ff; color: #4466cc; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+
+  /* ─── STATUS BADGES ─── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+    border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap;
+  }
+  .badge-pending { background: #fff3cd; color: #856404; }
+  .badge-op-review { background: #cce5ff; color: #004085; }
+  .badge-acc-approve { background: #d4edda; color: #155724; }
+  .badge-paid { background: #d1fae5; color: #065f46; }
+  .badge-cash { background: #e8f5e9; color: #2e7d32; }
+  .badge-credit { background: #fff8e1; color: #e65100; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ─── DETAIL VIEW ─── */
+  .back-btn {
+    display: inline-flex; align-items: center; gap: 6px; color: #4da6ff;
+    font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 16px;
+    padding: 6px 12px; background: #e8f4ff; border-radius: 6px; border: none;
+  }
+  .back-btn:hover { background: #d0e8ff; }
+
+  .detail-header {
+    background: white; border-radius: 10px; padding: 20px 24px; margin-bottom: 16px;
+    border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .detail-trip-id { font-size: 11px; color: #888; font-family: monospace; }
+  .detail-trip-name { font-size: 20px; font-weight: 700; color: #1a2332; margin: 4px 0; }
+  .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+  .detail-meta-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #667; }
+  .detail-meta-item strong { color: #334; }
+  .status-flow { display: flex; align-items: center; gap: 8px; }
+  .status-step {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 600;
+  }
+  .status-step-circle {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; border: 2px solid #ddd; background: #f8f8f8; color: #aaa;
+  }
+  .status-step.done .status-step-circle { border-color: #00d97e; background: #e8fff5; color: #00d97e; }
+  .status-step.active .status-step-circle { border-color: #4da6ff; background: #e8f4ff; color: #4da6ff; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(77,166,255,0.3)} 50%{box-shadow:0 0 0 6px rgba(77,166,255,0)} }
+  .status-step.pending .status-step-circle { border-color: #ddd; }
+  .flow-line { width: 30px; height: 2px; background: #e2e8f0; margin-bottom: 20px; }
+  .flow-line.done { background: #00d97e; }
+
+  /* ─── REVENUE BOX ─── */
+  .revenue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .revenue-box {
+    background: white; border-radius: 10px; border: 1px solid #e2e8f0; padding: 16px 20px;
+  }
+  .revenue-box-title { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .revenue-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 13px; }
+  .revenue-row:not(:last-child) { border-bottom: 1px dashed #f0f4f8; }
+  .revenue-row.total { font-weight: 700; font-size: 14px; border-top: 2px solid #e2e8f0; border-bottom: none !important; margin-top: 4px; padding-top: 8px; }
+  .revenue-row.gross-profit { background: #f0fff8; margin: 8px -20px -16px; padding: 12px 20px; border-radius: 0 0 10px 10px; font-weight: 700; font-size: 15px; }
+  .amount-positive { color: #00d97e; font-weight: 700; }
+  .amount-negative { color: #ff6b6b; font-weight: 700; }
+  .amount-neutral { color: #4da6ff; font-weight: 700; }
+  .amount-normal { color: #334; }
+
+  /* ─── COST ACCORDION ─── */
+  .cost-section { background: white; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 12px; overflow: hidden; }
+  .cost-header {
+    display: flex; align-items: center; padding: 14px 20px; cursor: pointer;
+    transition: background 0.1s; user-select: none;
+  }
+  .cost-header:hover { background: #f8fafc; }
+  .cost-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-right: 12px; flex-shrink: 0; }
+  .cost-header-text { flex: 1; }
+  .cost-title { font-weight: 700; color: #1a2332; font-size: 14px; }
+  .cost-subtitle { font-size: 11px; color: #888; margin-top: 1px; }
+  .cost-total { font-size: 16px; font-weight: 700; color: #334; margin-right: 12px; }
+  .cost-chevron { color: #aaa; font-size: 12px; transition: transform 0.2s; }
+  .cost-chevron.open { transform: rotate(180deg); }
+  .cost-body { display: none; border-top: 1px solid #f0f4f8; }
+  .cost-body.open { display: block; }
+  .cost-table thead th { font-size: 11px; }
+  .cost-type-tag { font-size: 10px; background: #f0f4f8; color: #556; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+  /* ─── ACTION BAR ─── */
+  .action-bar {
+    background: white; border-top: 1px solid #e2e8f0; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; bottom: 0;
+  }
+  .action-info { font-size: 12px; color: #888; }
+  .action-info strong { color: #334; }
+  .action-buttons { display: flex; gap: 10px; }
+
+  /* ─── COLOR PALETTE for cost icons ─── */
+  .ic-guide { background: #e8f4ff; }
+  .ic-vehicle { background: #fff3e0; }
+  .ic-other { background: #f3e8ff; }
+  .ic-allowance { background: #e8fff5; }
+  .ic-extra { background: #fff8e1; }
+
+  /* ─── TABS ─── */
+  .tab-row { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid #e2e8f0; background: white; color: #667;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { background: #4da6ff; color: white; border-color: #4da6ff; }
+  .tab-btn:hover:not(.active) { background: #f0f7ff; border-color: #4da6ff; color: #4da6ff; }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+  .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ─── TOOLTIP / CHIPS ─── */
+  .chip { display: inline-flex; align-items: center; gap: 4px; background: #f0f4f8; color: #556; font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+
+  /* ─── NUMBER FORMAT ─── */
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-wrap { margin-top: 10px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #888; margin-bottom: 4px; }
+  .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+  .fill-green { background: #00d97e; }
+  .fill-red { background: #ff6b6b; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-box">TOUR<br>SYSTEM</div>
+    <span style="font-size:13px;font-weight:700;color:#cdd5e0;">Tour System</span>
+  </div>
+
+  <!-- Dashboard section -->
+  <div class="sidebar-section-label">Dashboard</div>
+  <div class="sidebar-item"><span class="icon">⊞</span> Company Overview <span class="chevron">›</span></div>
+  <div class="sidebar-item"><span class="icon">📋</span> Booking</div>
+  <div class="sidebar-item"><span class="icon">🗺</span> Tour</div>
+  <div class="sidebar-item"><span class="icon">🚌</span> Vehicle</div>
+  <div class="sidebar-item"><span class="icon">👤</span> Guide</div>
+  <div class="sidebar-item"><span class="icon">📊</span> KPI</div>
+
+  <!-- Management section -->
+  <div class="sidebar-section-label">Management</div>
+  <div class="sidebar-item"><span class="icon">📑</span> Bookings <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🏝</span> Excursion <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🚐</span> Pick up Transport <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🚐</span> Drop off Transport <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">✅</span> Check In <span class="chevron">⌄</span></div>
+
+  <!-- ⭐ PAYMENT — NEW MENU (แยกออกจาก Check In) -->
+  <div class="sidebar-item payment-item active" onclick="showView('list')">
+    <span class="icon">💳</span>
+    <span>Payment</span>
+    <span class="sidebar-badge">5</span>
+  </div>
+
+  <div class="sidebar-item"><span class="icon">🔧</span> Vehicle Task</div>
+  <div class="sidebar-item"><span class="icon">📝</span> Guide Task</div>
+
+  <!-- Settings section -->
+  <div class="sidebar-section-label">Setting</div>
+  <div class="sidebar-item"><span class="icon">📦</span> Program <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🤝</span> Seller</div>
+  <div class="sidebar-item"><span class="icon">🚗</span> Vehicle <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">👥</span> Employee <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🗺</span> Zone Transfer</div>
+  <div class="sidebar-item"><span class="icon">⚙</span> User <span class="chevron">⌄</span></div>
+  <div class="sidebar-item"><span class="icon">🏢</span> Company</div>
+  <div class="sidebar-item"><span class="icon">📖</span> User Manual</div>
+</nav>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title">
+      <span>💳</span> Payment Hub
+      <span style="font-size:11px;background:#e8fff5;color:#00d97e;padding:3px 8px;border-radius:10px;font-weight:600;">MANAGEMENT</span>
+    </div>
+    <div class="topbar-right">
+      <span>Thu : 12 Mar 2026, 13:19</span>
+      <div class="avatar">AM</div>
+      <div>
+        <div style="font-weight:700;font-size:12px;">amares</div>
+        <div style="font-size:10px;color:#aaa;">Superadmin</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ VIEW 1: TRIP LIST ═══════════ -->
+  <div class="content view active" id="view-list">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Payment Hub</div>
+        <div class="page-subtitle">บันทึกและติดตามค่าใช้จ่ายรายทริป — Approve workflow สำหรับ OP &amp; Acc</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm">⬇ Export</button>
+        <button class="btn btn-primary btn-sm">+ Add Payment</button>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stat-row">
+      <div class="stat-card blue">
+        <div class="stat-label">Net Revenue (เดือนนี้)</div>
+        <div class="stat-value num">฿ 124,800</div>
+        <div class="stat-sub">Gross 148,500 — KB 23,700</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Total Cost (เดือนนี้)</div>
+        <div class="stat-value num">฿ 87,240</div>
+        <div class="stat-sub">5 หมวดค่าใช้จ่ายรวม</div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill fill-red" style="width:70%"></div></div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Gross Profit (เดือนนี้)</div>
+        <div class="stat-value num">฿ 37,560</div>
+        <div class="stat-sub">Margin 30.1%</div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill fill-green" style="width:30%"></div></div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">รอ Approve</div>
+        <div class="stat-value">5 Trips</div>
+        <div class="stat-sub">Pending: 2 | OP Review: 3</div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <span class="filter-label">วันที่:</span>
+      <input type="date" value="2026-03-01">
+      <span class="filter-label">ถึง</span>
+      <input type="date" value="2026-03-31">
+      <select>
+        <option>ทุก Program</option>
+        <option selected>Test Payment Hub Program</option>
+      </select>
+      <select>
+        <option>ทุก Seller</option>
+        <option>KLOOK</option><option>KKDAY</option><option>GetYourGuide</option>
+      </select>
+      <select id="statusFilter" onchange="filterTable()">
+        <option value="all">ทุก Status</option>
+        <option value="pending">Pending</option>
+        <option value="op">OP Reviewed</option>
+        <option value="acc">Acc Approved</option>
+      </select>
+      <button class="btn btn-primary btn-sm">🔍 ค้นหา</button>
+    </div>
+
+    <!-- TAB ROW -->
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab(this,'all')">ทั้งหมด (12)</button>
+      <button class="tab-btn" onclick="switchTab(this,'pending')">⏳ Pending (2)</button>
+      <button class="tab-btn" onclick="switchTab(this,'op')">🔵 OP Review (3)</button>
+      <button class="tab-btn" onclick="switchTab(this,'acc')">✅ Acc Approved (7)</button>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <div class="table-head">
+        <div class="table-head-title">รายการ Trip ที่ต้องชำระเงิน</div>
+        <div style="font-size:12px;color:#888;">แสดง 5 จาก 12 รายการ</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Trip ID</th>
+            <th>วันที่ / เวลา</th>
+            <th>Program</th>
+            <th>Seller</th>
+            <th>PAX</th>
+            <th>Net Revenue</th>
+            <th>Total Cost</th>
+            <th>Gross Profit</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="trip-table-body">
+          <tr onclick="showDetail('EX-2026-0312-001','Pending')">
+            <td><span class="trip-id">EX-2026-0312-001</span></td>
+            <td>12 Mar 26<br><small style="color:#888">07:00 น.</small></td>
+            <td>
+              <div class="program-name">Test Payment Hub Program</div>
+              <small style="color:#888">Excursion · Join In</small>
+            </td>
+            <td><span class="seller-tag">KLOOK</span></td>
+            <td><strong>9</strong> <small style="color:#aaa">pax</small></td>
+            <td class="num amount-positive">฿ 13,320</td>
+            <td class="num amount-negative">฿ 9,200</td>
+            <td class="num amount-neutral">฿ 4,120</td>
+            <td><span class="badge badge-pending"><span class="dot"></span>Pending</span></td>
+            <td><button class="btn btn-warning btn-sm" onclick="event.stopPropagation();showDetail('EX-2026-0312-001','Pending')">Review →</button></td>
+          </tr>
+          <tr onclick="showDetail('EX-2026-0311-002','Pending')">
+            <td><span class="trip-id">EX-2026-0311-002</span></td>
+            <td>11 Mar 26<br><small style="color:#888">07:00 น.</small></td>
+            <td>
+              <div class="program-name">Test Payment Hub Program</div>
+              <small style="color:#888">Excursion · Private</small>
+            </td>
+            <td><span class="seller-tag">KKDAY</span></td>
+            <td><strong>4</strong> <small style="color:#aaa">pax</small></td>
+            <td class="num amount-positive">฿ 8,400</td>
+            <td class="num amount-negative">฿ 5,800</td>
+            <td class="num amount-neutral">฿ 2,600</td>
+            <td><span class="badge badge-pending"><span class="dot"></span>Pending</span></td>
+            <td><button class="btn btn-warning btn-sm" onclick="event.stopPropagation();showDetail('EX-2026-0311-002','Pending')">Review →</button></td>
+          </tr>
+          <tr onclick="showDetail('EX-2026-0310-003','OP')">
+            <td><span class="trip-id">EX-2026-0310-003</span></td>
+            <td>10 Mar 26<br><small style="color:#888">07:00 น.</small></td>
+            <td>
+              <div class="program-name">Test Payment Hub Program</div>
+              <small style="color:#888">Excursion · Join In</small>
+            </td>
+            <td><span class="seller-tag" style="background:#e8fff5;color:#1a7a45;">One Asia</span></td>
+            <td><strong>12</strong> <small style="color:#aaa">pax</small></td>
+            <td class="num amount-positive">฿ 17,640</td>
+            <td class="num amount-negative">฿ 11,400</td>
+            <td class="num amount-neutral">฿ 6,240</td>
+            <td><span class="badge badge-op-review"><span class="dot"></span>OP Reviewed</span></td>
+            <td><button class="btn btn-primary btn-sm" onclick="event.stopPropagation();showDetail('EX-2026-0310-003','OP')">Approve →</button></td>
+          </tr>
+          <tr onclick="showDetail('EX-2026-0309-004','ACC')">
+            <td><span class="trip-id">EX-2026-0309-004</span></td>
+            <td>09 Mar 26<br><small style="color:#888">04:00 น.</small></td>
+            <td>
+              <div class="program-name">Test Payment Hub Program</div>
+              <small style="color:#888">Excursion · Join In</small>
+            </td>
+            <td><span class="seller-tag">GetYourGuide</span></td>
+            <td><strong>7</strong> <small style="color:#aaa">pax</small></td>
+            <td class="num amount-positive">฿ 10,290</td>
+            <td class="num amount-negative">฿ 7,100</td>
+            <td class="num amount-neutral">฿ 3,190</td>
+            <td><span class="badge badge-acc-approve"><span class="dot"></span>Acc Approved</span></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showDetail('EX-2026-0309-004','ACC')">ดูรายละเอียด</button></td>
+          </tr>
+          <tr onclick="showDetail('EX-2026-0308-005','ACC')">
+            <td><span class="trip-id">EX-2026-0308-005</span></td>
+            <td>08 Mar 26<br><small style="color:#888">07:00 น.</small></td>
+            <td>
+              <div class="program-name">Test Payment Hub Program</div>
+              <small style="color:#888">Excursion · Private</small>
+            </td>
+            <td><span class="seller-tag" style="background:#fdf0e8;color:#a0560a;">AgentTa</span></td>
+            <td><strong>6</strong> <small style="color:#aaa">pax</small></td>
+            <td class="num amount-positive">฿ 9,450</td>
+            <td class="num amount-negative">฿ 6,350</td>
+            <td class="num amount-neutral">฿ 3,100</td>
+            <td><span class="badge badge-acc-approve"><span class="dot"></span>Acc Approved</span></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();showDetail('EX-2026-0308-005','ACC')">ดูรายละเอียด</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div><!-- end view-list -->
+
+
+  <!-- ═══════════ VIEW 2: TRIP DETAIL ═══════════ -->
+  <div class="content view" id="view-detail">
+    <!-- BACK BUTTON -->
+    <button class="back-btn" onclick="showView('list')">← กลับรายการ</button>
+
+    <!-- TRIP HEADER CARD -->
+    <div class="detail-header">
+      <div>
+        <div class="detail-trip-id" id="d-trip-id">EX-2026-0312-001</div>
+        <div class="detail-trip-name">Test Payment Hub Program</div>
+        <div class="detail-meta">
+          <div class="detail-meta-item">📅 <strong>12 มีนาคม 2566</strong> เวลา 07:00 น.</div>
+          <div class="detail-meta-item">🏝 <strong>Excursion · Join In</strong></div>
+          <div class="detail-meta-item">👥 PAX: <strong>9 คน</strong></div>
+          <div class="detail-meta-item">🤝 Seller: <strong><span class="seller-tag">KLOOK</span></strong></div>
+          <div class="detail-meta-item">🚌 Vehicle: <strong>One Asia — BUS:45</strong></div>
+          <div class="detail-meta-item">👤 Guide: <strong>สมชาย ใจดี</strong></div>
+        </div>
+      </div>
+
+      <!-- STATUS FLOW -->
+      <div>
+        <div style="font-size:11px;color:#888;margin-bottom:8px;text-align:center;">Approval Status</div>
+        <div class="status-flow" id="status-flow">
+          <!-- injected by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- REVENUE GRID -->
+    <div class="revenue-grid">
+      <!-- Revenue -->
+      <div class="revenue-box">
+        <div class="revenue-box-title">💰 Revenue</div>
+        <div class="revenue-row">
+          <span>Selling Price / Unit</span><span class="amount-normal num">฿ 1,700 × 9 pax</span>
+        </div>
+        <div class="revenue-row">
+          <span>Gross Revenue</span><span class="amount-normal num">฿ 15,300</span>
+        </div>
+        <div class="revenue-row">
+          <span>Extra Revenue (Extra Cost)</span><span class="amount-normal num">+ ฿ 900</span>
+        </div>
+        <div class="revenue-row">
+          <span>KB Commission (KLOOK)</span><span class="amount-negative num">- ฿ 2,880</span>
+        </div>
+        <div class="revenue-row total">
+          <span>Net Revenue</span><span class="amount-positive num">฿ 13,320</span>
+        </div>
+      </div>
+
+      <!-- Cost Summary -->
+      <div class="revenue-box">
+        <div class="revenue-box-title">📊 Cost Summary vs Profit</div>
+        <div class="revenue-row">
+          <span>🧑‍💼 Guide Fee</span><span class="amount-normal num">฿ 1,000</span>
+        </div>
+        <div class="revenue-row">
+          <span>🚌 Vehicle Cost</span><span class="amount-normal num">฿ 4,500</span>
+        </div>
+        <div class="revenue-row">
+          <span>🎟 Other Expense</span><span class="amount-normal num">฿ 2,250</span>
+        </div>
+        <div class="revenue-row">
+          <span>💵 Allowance</span><span class="amount-normal num">฿ 720</span>
+        </div>
+        <div class="revenue-row">
+          <span>➕ Extra Cost</span><span class="amount-normal num">฿ 730</span>
+        </div>
+        <div class="revenue-row total">
+          <span>Total Cost</span><span class="amount-negative num">฿ 9,200</span>
+        </div>
+        <div class="revenue-row gross-profit">
+          <span>🏆 Gross Profit</span><span class="amount-positive num">฿ 4,120 (30.9%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── COST CATEGORY 1: GUIDE FEE ─── -->
+    <div class="cost-section">
+      <div class="cost-header" onclick="toggleCost(this)">
+        <div class="cost-icon ic-guide">🧑‍💼</div>
+        <div class="cost-header-text">
+          <div class="cost-title">Guide Fee</div>
+          <div class="cost-subtitle">1 Guide + 1 Staff</div>
+        </div>
+        <div class="cost-total num">฿ 1,000</div>
+        <div class="cost-chevron open">▼</div>
+      </div>
+      <div class="cost-body open">
+        <table class="cost-table">
+          <thead><tr><th>ชื่อ</th><th>ประเภท</th><th>Payment</th><th>Cost Type</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>รวม</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>สมชาย ใจดี</td>
+              <td><span class="chip">Guide</span></td>
+              <td><span class="badge badge-cash">💵 Cash</span></td>
+              <td><span class="cost-type-tag">All</span></td>
+              <td>1 Trip</td>
+              <td class="num">฿ 1,000</td>
+              <td class="num amount-normal"><strong>฿ 1,000</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── COST CATEGORY 2: VEHICLE COST ─── -->
+    <div class="cost-section">
+      <div class="cost-header" onclick="toggleCost(this)">
+        <div class="cost-icon ic-vehicle">🚌</div>
+        <div class="cost-header-text">
+          <div class="cost-title">Vehicle Cost</div>
+          <div class="cost-subtitle">Supplier — One Asia</div>
+        </div>
+        <div class="cost-total num">฿ 4,500</div>
+        <div class="cost-chevron">▼</div>
+      </div>
+      <div class="cost-body">
+        <table class="cost-table">
+          <thead><tr><th>Supplier</th><th>Group Type</th><th>Payment</th><th>Cost Type</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>One Asia</td>
+              <td><span class="chip">BUS:45</span></td>
+              <td><span class="badge badge-credit">🕐 Credit</span></td>
+              <td><span class="cost-type-tag">All</span></td>
+              <td>1 คัน</td>
+              <td class="num">฿ 4,500</td>
+              <td class="num amount-normal"><strong>฿ 4,500</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── COST CATEGORY 3: OTHER EXPENSE ─── -->
+    <div class="cost-section">
+      <div class="cost-header" onclick="toggleCost(this)">
+        <div class="cost-icon ic-other">🎟</div>
+        <div class="cost-header-text">
+          <div class="cost-title">Other Expense</div>
+          <div class="cost-subtitle">Entrance Fee + อาหาร (ทุก Option)</div>
+        </div>
+        <div class="cost-total num">฿ 2,250</div>
+        <div class="cost-chevron">▼</div>
+      </div>
+      <div class="cost-body">
+        <table class="cost-table">
+          <thead><tr><th>Items Type</th><th>Sub Item</th><th>Payment</th><th>Cost Type</th><th>PAX</th><th>ราคา/หน่วย</th><th>รวม</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Entrance Fee</td>
+              <td>Wat Phrahat Doi Suthep</td>
+              <td><span class="badge badge-cash">💵 Cash</span></td>
+              <td><span class="cost-type-tag">Person</span></td>
+              <td>9</td>
+              <td class="num">฿ 100</td>
+              <td class="num">฿ 900</td>
+            </tr>
+            <tr>
+              <td>Entrance Fee</td>
+              <td>Wat Chedi Luang</td>
+              <td><span class="badge badge-credit">🕐 Credit</span></td>
+              <td><span class="cost-type-tag">Person</span></td>
+              <td>9</td>
+              <td class="num">฿ 150</td>
+              <td class="num">฿ 1,350</td>
+            </tr>
+            <tr>
+              <td>อาหาร</td>
+              <td>อาหารกลางวัน</td>
+              <td><span class="badge badge-cash">💵 Cash</span></td>
+              <td><span class="cost-type-tag">Person</span></td>
+              <td>—</td>
+              <td class="num">฿ —</td>
+              <td class="num" style="color:#aaa;">รวมใน Package</td>
+            </tr>
+            <tr style="background:#f8fafc;">
+              <td colspan="6" style="text-align:right;font-weight:700;">รวม Other Expense</td>
+              <td class="num amount-normal"><strong>฿ 2,250</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── COST CATEGORY 4: ALLOWANCE ─── -->
+    <div class="cost-section">
+      <div class="cost-header" onclick="toggleCost(this)">
+        <div class="cost-icon ic-allowance">💵</div>
+        <div class="cost-header-text">
+          <div class="cost-title">Allowance</div>
+          <div class="cost-subtitle">ค่าเบี้ยเลี้ยงตาม Position</div>
+        </div>
+        <div class="cost-total num">฿ 720</div>
+        <div class="cost-chevron">▼</div>
+      </div>
+      <div class="cost-body">
+        <table class="cost-table">
+          <thead><tr><th>Items Type</th><th>Position</th><th>Payment</th><th>Cost Type</th><th>จำนวน</th><th>ราคา</th><th>รวม</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>ค่าเที่ยวบิน</td>
+              <td><span class="chip">Driver</span></td>
+              <td><span class="badge badge-cash">💵 Cash</span></td>
+              <td><span class="cost-type-tag">All</span></td>
+              <td>1</td>
+              <td class="num">฿ 500</td>
+              <td class="num">฿ 500</td>
+            </tr>
+            <tr>
+              <td>ค่าทางด่วน</td>
+              <td><span class="chip">Driver</span></td>
+              <td><span class="badge badge-credit">🕐 Credit</span></td>
+              <td><span class="cost-type-tag">All</span></td>
+              <td>1</td>
+              <td class="num">฿ 220</td>
+              <td class="num">฿ 220</td>
+            </tr>
+            <tr style="background:#f8fafc;">
+              <td colspan="6" style="text-align:right;font-weight:700;">รวม Allowance</td>
+              <td class="num amount-normal"><strong>฿ 720</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── COST CATEGORY 5: EXTRA COST ─── -->
+    <div class="cost-section">
+      <div class="cost-header" onclick="toggleCost(this)">
+        <div class="cost-icon ic-extra">➕</div>
+        <div class="cost-header-text">
+          <div class="cost-title">Extra Cost</div>
+          <div class="cost-subtitle">เก็บเพิ่มจากลูกค้า — Option: test package 1</div>
+        </div>
+        <div class="cost-total">
+          <span class="num" style="color:#ffd166;">+ ฿ 730</span>
+          <div style="font-size:10px;color:#888;text-align:right;">เก็บจากลูกค้า</div>
+        </div>
+        <div class="cost-chevron">▼</div>
+      </div>
+      <div class="cost-body">
+        <table class="cost-table">
+          <thead><tr><th>Option</th><th>Items</th><th>Payment</th><th>Cost Type</th><th>PAX</th><th>ราคา/หน่วย</th><th>รวม</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>test package 1</td>
+              <td>Entrance Fee: Wat Phrahat</td>
+              <td><span class="badge badge-cash">💵 Cash</span></td>
+              <td><span class="cost-type-tag">Person</span></td>
+              <td>9</td>
+              <td class="num">฿ 81</td>
+              <td class="num">฿ 730</td>
+            </tr>
+            <tr style="background:#fff8e1;">
+              <td colspan="6" style="text-align:right;font-weight:700;color:#e65100;">รวม Extra (เก็บจากลูกค้า)</td>
+              <td class="num" style="font-weight:700;color:#e65100;">฿ 730</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding:10px 16px;background:#fff8e1;font-size:12px;color:#a0560a;">
+          ⚠️ Extra Cost นี้จะถูกบวกเพิ่มใน Selling Price ที่เก็บจากลูกค้า ไม่ใช่ต้นทุนของบริษัท
+        </div>
+      </div>
+    </div>
+
+    <!-- SPACER FOR STICKY ACTION BAR -->
+    <div style="height: 80px;"></div>
+  </div><!-- end view-detail -->
+
+  <!-- ─── STICKY ACTION BAR (เฉพาะ Detail View) ─── -->
+  <div class="action-bar" id="action-bar" style="display:none;">
+    <div class="action-info">
+      Trip: <strong id="ab-trip-id">EX-2026-0312-001</strong> &nbsp;|&nbsp;
+      Status: <span id="ab-status-badge"></span> &nbsp;|&nbsp;
+      Total Cost: <strong class="num">฿ 9,200</strong> &nbsp;|&nbsp;
+      Gross Profit: <strong class="num amount-positive">฿ 4,120</strong>
+    </div>
+    <div class="action-buttons" id="action-buttons">
+      <!-- injected by JS -->
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<!-- ══════════════════════ SCRIPTS ══════════════════════ -->
+<script>
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + name).classList.add('active');
+    const ab = document.getElementById('action-bar');
+    ab.style.display = name === 'detail' ? 'flex' : 'none';
+  }
+
+  function showDetail(tripId, status) {
+    document.getElementById('d-trip-id').textContent = tripId;
+    document.getElementById('ab-trip-id').textContent = tripId;
+
+    // Status Flow
+    const flowEl = document.getElementById('status-flow');
+    const statusBadgeEl = document.getElementById('ab-status-badge');
+    let flowHTML = '';
+    const steps = [
+      { key:'created', label:'Created', icon:'📝' },
+      { key:'op', label:'OP Review', icon:'🔵' },
+      { key:'acc', label:'Acc Approve', icon:'✅' },
+      { key:'done', label:'Paid', icon:'💰' },
+    ];
+    const activeIdx = status === 'Pending' ? 0 : status === 'OP' ? 1 : status === 'ACC' ? 2 : 3;
+    steps.forEach((s, i) => {
+      const cls = i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending';
+      flowHTML += `<div class="status-step ${cls}">
+        <div class="status-step-circle">${s.icon}</div>
+        <div>${s.label}</div>
+      </div>`;
+      if (i < steps.length - 1) {
+        flowHTML += `<div class="flow-line ${i < activeIdx ? 'done' : ''}"></div>`;
+      }
+    });
+    flowEl.innerHTML = flowHTML;
+
+    // Action buttons
+    const btnEl = document.getElementById('action-buttons');
+    if (status === 'Pending') {
+      statusBadgeEl.innerHTML = '<span class="badge badge-pending">⏳ Pending</span>';
+      btnEl.innerHTML = `
+        <button class="btn btn-ghost">💬 หมายเหตุ</button>
+        <button class="btn btn-danger" onclick="alert('ส่งกลับเพื่อแก้ไข')">✖ Reject</button>
+        <button class="btn btn-warning" onclick="opReview()">🔵 OP Review</button>`;
+    } else if (status === 'OP') {
+      statusBadgeEl.innerHTML = '<span class="badge badge-op-review">🔵 OP Reviewed</span>';
+      btnEl.innerHTML = `
+        <button class="btn btn-ghost">💬 หมายเหตุ</button>
+        <button class="btn btn-danger" onclick="alert('ส่งกลับ OP')">✖ Reject</button>
+        <button class="btn btn-success" onclick="accApprove()">✅ Acc Approve</button>`;
+    } else if (status === 'ACC') {
+      statusBadgeEl.innerHTML = '<span class="badge badge-acc-approve">✅ Acc Approved</span>';
+      btnEl.innerHTML = `
+        <button class="btn btn-ghost">📄 Print Voucher</button>
+        <button class="btn btn-ghost">⬇ Export PDF</button>`;
+    }
+
+    showView('detail');
+  }
+
+  function opReview() {
+    alert('✅ OP Review เรียบร้อย\n\nสถานะเปลี่ยนเป็น "OP Reviewed"\nรอ Accounting อนุมัติ');
+    showView('list');
+  }
+
+  function accApprove() {
+    alert('✅ Acc Approved เรียบร้อย!\n\nสถานะสุดท้าย — พร้อมจ่ายจริงนอกระบบ');
+    showView('list');
+  }
+
+  function toggleCost(header) {
+    const body = header.nextElementSibling;
+    const chevron = header.querySelector('.cost-chevron');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    chevron.classList.toggle('open', !isOpen);
+  }
+
+  function switchTab(btn, filter) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  // Open Guide Fee by default in detail
+  document.addEventListener('DOMContentLoaded', () => {
+    const firstCost = document.querySelector('.cost-body');
+    if (firstCost) firstCost.classList.add('open');
+  });
+</script>
+</body>
+</html>

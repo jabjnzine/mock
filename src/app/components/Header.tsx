@@ -31,7 +31,7 @@ export default function Header() {
 
   return (
     <header
-      className="w-full h-16 bg-white overflow-hidden flex items-center justify-end pr-6 shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08)]"
+      className="w-full h-16 bg-white overflow-hidden flex items-center justify-end pr-6 shadow-[0_2px_8px_rgba(0,0,0,0.12),0_1px_3px_rgba(0,0,0,0.08)] border-2"
     >
       <div className="inline-flex justify-end items-center gap-4 overflow-hidden">
         {/* วันที่และเวลา */}
